@@ -1,5 +1,4 @@
-import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
-import { FaXTwitter } from "react-icons/fa6";
+import { FaFacebook, FaInstagram, FaLinkedin, FaTwitter } from "react-icons/fa";
 
 function Footer() {
   return (
@@ -89,7 +88,7 @@ function Footer() {
             <div className="flex items-center gap-8 md:pr-12">
               {[
                 { icon: FaFacebook, label: "Facebook" },
-                { icon: FaXTwitter, label: "X" },
+                { icon: FaTwitter, label: "Twitter" },
                 { icon: FaLinkedin, label: "LinkedIn" },
                 { icon: FaInstagram, label: "Instagram" },
               ].map((social, index) => (
