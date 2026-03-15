@@ -1,0 +1,60 @@
+/* Section Background */
+.why-section {
+  background: url("/img/why-bg.jpg") center/cover no-repeat;
+  padding: 100px 0;
+  position: relative;
+}
+
+.why-title {
+  font-size: 42px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Card */
+.why-card {
+  background: #f1f1f1;
+  padding: 30px;
+  border-radius: 8px;
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.why-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+}
+
+.why-card h5 {
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+.why-card p {
+  color: #555;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.why-icon {
+  font-size: 28px;
+  color: #f4b942;
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+  .why-section {
+    padding: 80px 0;
+  }
+
+  .why-title {
+    font-size: 32px;
+  }
+}
+
+@media (max-width: 767px) {
+  .why-title {
+    text-align: center;
+    font-size: 26px;
+  }
+}

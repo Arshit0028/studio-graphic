@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* 1. Define the Custom 'Blob' Animation here */
+@theme {
+  --animate-blob: blob 7s infinite;
+  --animate-float: float 6s ease-in-out infinite;
+
+  @keyframes blob {
+    0% { transform: translate(0px, 0px) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
+    100% { transform: translate(0px, 0px) scale(1); }
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+    100% { transform: translateY(0px); }
+  }
+}
+
+/* 2. Add Custom Delay Utilities (Standard CSS syntax works best here) */
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* 3. Ensure full height for the background */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: white;
+  scroll-behavior: smooth;
+}
