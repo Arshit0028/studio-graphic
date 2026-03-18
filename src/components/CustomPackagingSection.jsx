@@ -19,13 +19,13 @@ function CustomPackagingSection() {
                 <span className="absolute -left-6 top-2 w-16 h-16 md:w-20 md:h-20 bg-yellow-400 rounded-full -z-10"></span>
 
                 <h2
-                  className="text-black tracking-wide"
+                  className="text-black"
                   style={{
                     fontFamily: '"boldonse", sans-serif',
-                    wordSpacing: "0.08em",
+                    wordSpacing: "0.06em",
                     lineHeight: "1.3",
-                    whiteSpace: "normal",
-                    fontSize: "clamp(22px, 4vw, 42px)",
+                    whiteSpace: "nowrap",
+                    fontSize: "clamp(16px, 2.2vw, 38px)",
                   }}
                 >
                   Packaging Customized Exactly Your Way.

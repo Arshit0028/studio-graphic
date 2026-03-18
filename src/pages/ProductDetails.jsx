@@ -8,8 +8,22 @@ import useAuthStore from "../auth/useAuthStore";
 import Footer from "../components/Footer";
 import TopSellingProducts from "../components/TopSellingProducts";
 
-const GUEST_TOKEN =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJndWVzdElkIjoiNjlhZTc5M2I4ZWUzNGUyYTZiMjk3YWE1IiwidGltZXN0YW1wIjoxNzczMDQxOTc5MjI3LCJpYXQiOjE3NzMwNDE5Nzl9.sOaSZXDRgywoj-YTvQPwwlFY5ArmMZ0-H7njQoyi0WQ";
+const BACKEND_URL = "http://3.110.128.94:8181";
+const IS_DEV = import.meta.env.DEV;
+const GUEST_TOKEN = import.meta.env.VITE_GUEST_TOKEN || "";
+
+const fixImageUrl = (url) => {
+  if (!url || typeof url !== "string") return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    if (IS_DEV) return url;
+    return url.startsWith(BACKEND_URL) ? url.replace(BACKEND_URL, "") : url;
+  }
+  if (IS_DEV) return `${BACKEND_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+  return url.startsWith("/") ? url : `/${url}`;
+};
+
+const fixImages = (imgs) =>
+  (imgs || []).map((img) => fixImageUrl(img)).filter(Boolean);
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -82,6 +96,16 @@ const ProductDetails = () => {
         }
 
         if (safeData) {
+          const rawImages = safeData.images?.length
+            ? safeData.images
+            : safeData.media?.length
+              ? safeData.media
+              : ["https://placehold.co/600x600/eeeeee/333333?text=No+Image"];
+
+          const images = fixImages(rawImages).length
+            ? fixImages(rawImages)
+            : ["https://placehold.co/600x600/eeeeee/333333?text=No+Image"];
+
           const formattedProduct = {
             id: safeData._id || safeData.id || id,
             name: safeData.name || safeData.title || "Untitled Box",
@@ -94,11 +118,7 @@ const ProductDetails = () => {
             material: safeData.material || "Standard Corrugated",
             useCase: safeData.useCase || "General Purpose",
             eco: safeData.eco || ["Recyclable"],
-            images: safeData.images?.length
-              ? safeData.images
-              : safeData.media?.length
-                ? safeData.media
-                : ["https://placehold.co/600x600/eeeeee/333333?text=No+Image"],
+            images,
             dimensions: safeData.dimensions?.length
               ? safeData.dimensions
               : ["Standard Size"],
