@@ -1,7 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// 🔹 1. LAZY LOAD COMPONENTS
 const PopularCategories = lazy(() => import("../components/PopularCategories"));
 const CustomPackagingSection = lazy(
   () => import("../components/CustomPackagingSection"),
@@ -34,18 +33,9 @@ const slides = [
 ];
 
 const variants = {
-  enter: (direction) => ({
-    x: direction > 0 ? 100 : -100,
-    opacity: 0,
-  }),
-  center: {
-    x: 0,
-    opacity: 1,
-  },
-  exit: (direction) => ({
-    x: direction < 0 ? 100 : -100,
-    opacity: 0,
-  }),
+  enter: (direction) => ({ x: direction > 0 ? 80 : -80, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (direction) => ({ x: direction < 0 ? 80 : -80, opacity: 0 }),
 };
 
 const HeroCarousel = () => {
@@ -71,9 +61,9 @@ const HeroCarousel = () => {
   };
 
   return (
-    <section className="relative w-full overflow-hidden bg-white min-h-[85vh] lg:h-[650px] flex items-center">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="relative h-[600px] lg:h-[500px]">
+    <section className="w-full bg-white overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-14">
+        <div className="relative overflow-hidden">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={activeIndex}
@@ -82,60 +72,92 @@ const HeroCarousel = () => {
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-              className="absolute inset-0 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center"
+              transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+              className="flex flex-col-reverse lg:grid lg:grid-cols-2 lg:gap-12 lg:items-center"
             >
-              <div className="flex flex-col justify-center text-left">
+              <div className="flex flex-col justify-center text-left mt-6 lg:mt-0">
+                <span className="inline-block text-xs font-bold tracking-widest uppercase text-yellow-500 mb-5">
+                  Premium Packaging
+                </span>
                 <h1
-                  className="hero-title mb-6 text-4xl md:text-5xl text-gray-900 tracking-wide leading-tight"
+                  className="text-3xl sm:text-4xl lg:text-5xl text-gray-900 tracking-wide leading-tight mb-6"
                   style={{ fontFamily: '"boldonse", sans-serif' }}
                 >
                   {slides[activeIndex].title}
                 </h1>
-                <p className="text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl">
+                <p className="text-base sm:text-lg text-gray-500 leading-relaxed max-w-lg mt-1">
                   {slides[activeIndex].text}
                 </p>
               </div>
 
-              <div className="relative w-full h-[350px] sm:h-[450px] lg:h-full overflow-hidden rounded-xl bg-gray-50">
+              <div
+                className="relative w-full rounded-2xl overflow-hidden bg-gray-50 shadow-sm"
+                style={{ height: "clamp(240px, 60vw, 520px)" }}
+              >
                 <img
                   src={slides[activeIndex].img}
                   alt={slides[activeIndex].title}
-                  className="w-full h-full object-cover shadow-sm"
+                  className="w-full h-full object-cover"
                   fetchPriority={activeIndex === 0 ? "high" : "low"}
                   loading={activeIndex === 0 ? "eager" : "lazy"}
                   width="660"
-                  height="600"
+                  height="520"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent rounded-2xl" />
               </div>
             </motion.div>
           </AnimatePresence>
         </div>
 
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center space-x-6 z-20">
+        <div className="flex items-center justify-center gap-5 mt-8">
           <button
             onClick={handlePrev}
-            className="p-2 hover:scale-110 transition-transform"
-            aria-label="Prev"
+            className="w-9 h-9 rounded-full border border-gray-200 bg-white shadow-sm flex items-center justify-center text-gray-400 hover:border-yellow-400 hover:text-yellow-500 hover:shadow-md transition-all duration-200"
+            aria-label="Previous"
           >
-            ‹
+            <svg
+              className="w-3.5 h-3.5"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10 3L5 8l5 5" />
+            </svg>
           </button>
-          <div className="flex space-x-3">
+
+          <div className="flex items-center gap-2">
             {slides.map((_, index) => (
               <button
                 key={index}
-                onClick={() => setActiveIndex(index)}
-                className={`h-2 rounded-full transition-all duration-300 ${activeIndex === index ? "bg-gray-900 w-8" : "bg-gray-300 w-2"}`}
+                onClick={() => {
+                  setDirection(index > activeIndex ? 1 : -1);
+                  setActiveIndex(index);
+                }}
+                className={`h-1.5 rounded-full transition-all duration-300 ${activeIndex === index ? "bg-gray-800 w-6" : "bg-gray-200 w-2 hover:bg-gray-400"}`}
                 aria-label={`Slide ${index + 1}`}
               />
             ))}
           </div>
+
           <button
             onClick={handleNext}
-            className="p-2 hover:scale-110 transition-transform"
+            className="w-9 h-9 rounded-full border border-gray-200 bg-white shadow-sm flex items-center justify-center text-gray-400 hover:border-yellow-400 hover:text-yellow-500 hover:shadow-md transition-all duration-200"
             aria-label="Next"
           >
-            ›
+            <svg
+              className="w-3.5 h-3.5"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 3l5 5-5 5" />
+            </svg>
           </button>
         </div>
       </div>
@@ -147,7 +169,13 @@ export default function Home() {
   return (
     <main className="bg-white">
       <HeroCarousel />
-      <Suspense fallback={<div className="py-20 text-center">Loading...</div>}>
+      <Suspense
+        fallback={
+          <div className="py-20 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-full border-2 border-gray-200 border-t-gray-900 animate-spin" />
+          </div>
+        }
+      >
         <PopularCategories />
         <CustomPackagingSection />
         <TopSellingProducts />
