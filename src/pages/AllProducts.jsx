@@ -4,21 +4,19 @@ import api from "../api/axios";
 import useAuthStore from "../auth/useAuthStore";
 import Footer from "../components/Footer";
 
-// ✅ Fix image URLs — handles relative paths from backend
-const getSafeImage = (product) => {
-  const raw =
-    product.image || product.media?.[0] || product.images?.[0] || null;
-
-  if (!raw) return "https://placehold.co/400x400?text=No+Preview";
-
-  // Already an absolute URL
-  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-
-  // Relative path — prepend /uploads/ if not already there
-  if (raw.startsWith("/uploads/")) return raw;
-  if (raw.startsWith("uploads/")) return `/${raw}`;
-
-  return `/uploads/${raw}`;
+// ✅ API returns: "image": "http://3.110.128.94:8181/uploads/boxTypes/file.png"
+// Strip the backend origin → /uploads/boxTypes/file.png → Vercel rewrite handles it
+const fixImageUrl = (url) => {
+  if (!url || typeof url !== "string")
+    return "https://placehold.co/400x400?text=No+Preview";
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    try {
+      return new URL(url).pathname; // → /uploads/boxTypes/file.png
+    } catch {
+      return "https://placehold.co/400x400?text=No+Preview";
+    }
+  }
+  return url.startsWith("/") ? url : `/${url}`;
 };
 
 /* ─── Collapsible filter section ─── */
@@ -90,7 +88,7 @@ const FilterOption = ({ label, checked, onChange }) => (
   </label>
 );
 
-/* ─── Shared filter panel content ─── */
+/* ─── Filter panel ─── */
 const FilterPanel = ({
   filters,
   toggleFilter,
@@ -110,7 +108,6 @@ const FilterPanel = ({
         </button>
       )}
     </div>
-
     <FilterSection title="Price">
       <FilterOption
         label="Under ₹1,000"
@@ -128,7 +125,6 @@ const FilterPanel = ({
         onChange={() => toggleFilter("price", "high")}
       />
     </FilterSection>
-
     <FilterSection title="Box Type">
       <FilterOption
         label="Universal Box"
@@ -141,7 +137,6 @@ const FilterPanel = ({
         onChange={() => toggleFilter("type", "Hamper Boxes")}
       />
     </FilterSection>
-
     <FilterSection title="Size">
       <FilterOption
         label="Small"
@@ -159,7 +154,6 @@ const FilterPanel = ({
         onChange={() => toggleFilter("size", "large")}
       />
     </FilterSection>
-
     <FilterSection title="Material">
       <FilterOption
         label="Rigid"
@@ -172,7 +166,6 @@ const FilterPanel = ({
         onChange={() => toggleFilter("material", "Kraft")}
       />
     </FilterSection>
-
     <FilterSection title="Use Case">
       <FilterOption
         label="E-commerce"
@@ -190,7 +183,6 @@ const FilterPanel = ({
         onChange={() => toggleFilter("useCase", "electronics")}
       />
     </FilterSection>
-
     <FilterSection title="Features">
       <FilterOption
         label="Eco-friendly"
@@ -209,11 +201,7 @@ const FilterPanel = ({
 /* ─── Main Page ─── */
 const AllProducts = () => {
   const navigate = useNavigate();
-
-  // ✅ Use token from store (works for both guest and logged-in users)
-  // Do NOT use VITE_GUEST_TOKEN — that's a static expired token
   const token = useAuthStore((state) => state.token);
-
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [products, setProducts] = useState([]);
@@ -243,9 +231,8 @@ const AllProducts = () => {
     }
   }, [searchParams]);
 
-  // ✅ Wait for token before fetching — this fixes the "need to refresh" bug
+  // ✅ Wait for token before fetching
   useEffect(() => {
-    // If no token yet, wait — App.jsx is still fetching the guest token
     if (!token) return;
 
     let isMounted = true;
@@ -254,22 +241,19 @@ const AllProducts = () => {
       try {
         setLoading(true);
         const response = await api.get("/v1/box-types/type-list");
-        // ✅ Axios interceptor already attaches the token — no need to pass it manually
-
         if (!isMounted) return;
 
-        let rawData = response.data;
+        // ✅ Correct response shape: response.data.data.data[]
+        const raw = response.data;
         let safeData = [];
 
-        if (Array.isArray(rawData)) safeData = rawData;
-        else if (Array.isArray(rawData?.data)) safeData = rawData.data;
-        else if (rawData?.data && typeof rawData.data === "object") {
-          const found = Object.values(rawData.data).find(Array.isArray);
+        if (Array.isArray(raw)) safeData = raw;
+        else if (Array.isArray(raw?.data)) safeData = raw.data;
+        else if (Array.isArray(raw?.data?.data))
+          safeData = raw.data.data; // ✅ actual shape
+        else {
+          const found = Object.values(raw?.data || {}).find(Array.isArray);
           if (found) safeData = found;
-        }
-        if (!safeData.length) {
-          const fallback = Object.values(rawData).find(Array.isArray);
-          if (fallback) safeData = fallback;
         }
 
         if (safeData.length > 0) {
@@ -279,6 +263,8 @@ const AllProducts = () => {
               _id: item._id || item.id || `temp-${Math.random()}`,
               name: item.name || item.title || "Untitled Box",
               price: Number(item.price) || 0,
+              // ✅ API returns single "image" field (not array)
+              image: fixImageUrl(item.image),
             })),
           );
           setError(null);
@@ -299,11 +285,10 @@ const AllProducts = () => {
     };
 
     fetchProducts();
-
     return () => {
       isMounted = false;
     };
-  }, [token]); // ✅ Re-fetches when token changes (guest → logged in)
+  }, [token]);
 
   const filteredProducts = useMemo(() => {
     return products
@@ -354,7 +339,6 @@ const AllProducts = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f8f7f4] font-sans">
-      {/* Header */}
       <header className="bg-yellow-400 py-10 md:py-12 px-6 shadow-sm">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 tracking-tight">
@@ -367,7 +351,7 @@ const AllProducts = () => {
       </header>
 
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-10 flex flex-col lg:flex-row gap-8">
-        {/* ── DESKTOP SIDEBAR ── */}
+        {/* DESKTOP SIDEBAR */}
         <aside className="hidden lg:block w-60 flex-shrink-0">
           <div className="sticky top-8">
             <FilterPanel
@@ -379,7 +363,7 @@ const AllProducts = () => {
           </div>
         </aside>
 
-        {/* ── MOBILE TOP BAR ── */}
+        {/* MOBILE TOP BAR */}
         <div className="lg:hidden space-y-3">
           <div className="flex items-center gap-3">
             <button
@@ -407,7 +391,6 @@ const AllProducts = () => {
                 </span>
               )}
             </button>
-
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
@@ -418,7 +401,6 @@ const AllProducts = () => {
               <option value="price-desc">Price: High to Low</option>
             </select>
           </div>
-
           {activeFilterCount > 0 && (
             <div className="flex flex-wrap gap-2">
               {Object.entries(filters).map(([key, values]) =>
@@ -442,7 +424,7 @@ const AllProducts = () => {
           )}
         </div>
 
-        {/* ── MOBILE FILTER DRAWER ── */}
+        {/* MOBILE FILTER DRAWER */}
         {mobileFilterOpen && (
           <div className="fixed inset-0 z-50 flex lg:hidden">
             <div
@@ -467,7 +449,6 @@ const AllProducts = () => {
                   ✕
                 </button>
               </div>
-
               <div className="flex-1 overflow-y-auto p-4">
                 <FilterPanel
                   filters={filters}
@@ -476,7 +457,6 @@ const AllProducts = () => {
                   activeFilterCount={activeFilterCount}
                 />
               </div>
-
               <div className="p-4 border-t border-gray-200 bg-white">
                 <button
                   type="button"
@@ -490,7 +470,7 @@ const AllProducts = () => {
           </div>
         )}
 
-        {/* ── PRODUCTS GRID ── */}
+        {/* PRODUCTS GRID */}
         <main className="flex-1 min-w-0">
           <div className="hidden lg:flex items-center justify-between mb-6">
             <p className="text-sm text-gray-500">
@@ -527,7 +507,6 @@ const AllProducts = () => {
               ))}
             </div>
           ) : error ? (
-            // ✅ Error state
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <p className="text-gray-900 font-semibold text-lg">{error}</p>
               <button
@@ -548,11 +527,10 @@ const AllProducts = () => {
                 >
                   <div className="aspect-square bg-gray-50 overflow-hidden">
                     <img
-                      src={getSafeImage(product)}
+                      src={product.image}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       onError={(e) => {
-                        // ✅ Fallback if image fails to load
                         e.target.onerror = null;
                         e.target.src =
                           "https://placehold.co/400x400?text=No+Preview";
@@ -577,7 +555,6 @@ const AllProducts = () => {
             </div>
           )}
 
-          {/* Empty state */}
           {filteredProducts.length === 0 && !loading && !error && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="w-14 h-14 rounded-full bg-yellow-100 flex items-center justify-center mb-4">

@@ -8,22 +8,22 @@ import useAuthStore from "../auth/useAuthStore";
 import Footer from "../components/Footer";
 import TopSellingProducts from "../components/TopSellingProducts";
 
-const BACKEND_URL = "http://3.110.128.94:8181";
-const IS_DEV = import.meta.env.DEV;
-const GUEST_TOKEN = import.meta.env.VITE_GUEST_TOKEN || "";
-
+// ✅ API returns: "image": "http://3.110.128.94:8181/uploads/boxTypes/file.png"
+// Strip backend origin → /uploads/boxTypes/file.png → Vercel rewrite handles it
 const fixImageUrl = (url) => {
   if (!url || typeof url !== "string") return null;
   if (url.startsWith("http://") || url.startsWith("https://")) {
-    if (IS_DEV) return url;
-    return url.startsWith(BACKEND_URL) ? url.replace(BACKEND_URL, "") : url;
+    try {
+      return new URL(url).pathname; // → /uploads/boxTypes/file.png
+    } catch {
+      return null;
+    }
   }
-  if (IS_DEV) return `${BACKEND_URL}${url.startsWith("/") ? "" : "/"}${url}`;
   return url.startsWith("/") ? url : `/${url}`;
 };
 
-const fixImages = (imgs) =>
-  (imgs || []).map((img) => fixImageUrl(img)).filter(Boolean);
+const FALLBACK_IMAGE =
+  "https://placehold.co/600x600/eeeeee/333333?text=No+Image";
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -31,7 +31,7 @@ const ProductDetails = () => {
 
   const addToCart = useCartStore((state) => state.addToCart);
   const token = useAuthStore((state) => state.token);
-  const isAuthenticated = !!token;
+  const isLoggedIn = useAuthStore((state) => state.isLoggedIn); // ✅ not !!token
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +41,10 @@ const ProductDetails = () => {
   const [selectedDimension, setSelectedDimension] = useState("");
   const [selectedGsm, setSelectedGsm] = useState("");
 
+  // ✅ Wait for token before fetching
   useEffect(() => {
+    if (!token) return;
+
     let isMounted = true;
 
     const fetchProductDetails = async () => {
@@ -49,17 +52,8 @@ const ProductDetails = () => {
         setLoading(true);
         setError(null);
 
-        const activeToken = token || GUEST_TOKEN;
-
-        const response = await api.get(`/v1/box-types/${id}`, {
-          headers: {
-            Authorization: `Bearer ${activeToken}`,
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
-        });
-
+        // ✅ Axios interceptor attaches token automatically
+        const response = await api.get(`/v1/box-types/${id}`);
         if (!isMounted) return;
 
         let rawData = response.data;
@@ -74,6 +68,12 @@ const ProductDetails = () => {
             } else if (typeof rawData.data === "object") {
               if (rawData.data._id || rawData.data.name || rawData.data.title) {
                 safeData = rawData.data;
+              } else if (rawData.data.data) {
+                // ✅ Handle nested data.data shape
+                const inner = rawData.data.data;
+                if (Array.isArray(inner) && inner.length > 0)
+                  safeData = inner[0];
+                else if (inner._id || inner.name) safeData = inner;
               } else {
                 safeData = Object.values(rawData.data).find(
                   (val) =>
@@ -96,15 +96,8 @@ const ProductDetails = () => {
         }
 
         if (safeData) {
-          const rawImages = safeData.images?.length
-            ? safeData.images
-            : safeData.media?.length
-              ? safeData.media
-              : ["https://placehold.co/600x600/eeeeee/333333?text=No+Image"];
-
-          const images = fixImages(rawImages).length
-            ? fixImages(rawImages)
-            : ["https://placehold.co/600x600/eeeeee/333333?text=No+Image"];
+          // ✅ API uses single "image" field, not array
+          const imageUrl = fixImageUrl(safeData.image) || FALLBACK_IMAGE;
 
           const formattedProduct = {
             id: safeData._id || safeData.id || id,
@@ -118,7 +111,8 @@ const ProductDetails = () => {
             material: safeData.material || "Standard Corrugated",
             useCase: safeData.useCase || "General Purpose",
             eco: safeData.eco || ["Recyclable"],
-            images,
+            // ✅ Single image field — wrap in array for gallery UI
+            images: [imageUrl],
             dimensions: safeData.dimensions?.length
               ? safeData.dimensions
               : ["Standard Size"],
@@ -136,6 +130,10 @@ const ProductDetails = () => {
         }
       } catch (err) {
         if (!isMounted) return;
+        console.error(
+          "❌ Failed to fetch product:",
+          err?.response?.data || err.message,
+        );
         setError("Unable to load product details.");
       } finally {
         if (isMounted) setLoading(false);
@@ -143,7 +141,6 @@ const ProductDetails = () => {
     };
 
     fetchProductDetails();
-
     return () => {
       isMounted = false;
     };
@@ -157,6 +154,10 @@ const ProductDetails = () => {
   }, [product]);
 
   const handleAddToCart = useCallback(() => {
+    if (!isLoggedIn) {
+      navigate("/login", { state: { from: { pathname: `/product/${id}` } } });
+      return;
+    }
     if (product) {
       addToCart({
         id: `${product.id}-${selectedDimension}-${selectedGsm}`,
@@ -170,16 +171,25 @@ const ProductDetails = () => {
       });
       alert("Added to Cart!");
     }
-  }, [addToCart, product, selectedDimension, selectedGsm, activeImage]);
+  }, [
+    isLoggedIn,
+    addToCart,
+    product,
+    selectedDimension,
+    selectedGsm,
+    activeImage,
+    navigate,
+    id,
+  ]);
 
   const handleBuyNow = useCallback(() => {
-    if (!isAuthenticated) {
+    if (!isLoggedIn) {
       navigate("/login", { state: { from: { pathname: `/product/${id}` } } });
       return;
     }
     handleAddToCart();
     navigate("/cart");
-  }, [isAuthenticated, handleAddToCart, navigate, id]);
+  }, [isLoggedIn, handleAddToCart, navigate, id]);
 
   if (loading) {
     return (
@@ -241,6 +251,10 @@ const ProductDetails = () => {
                     src={img}
                     alt="thumb"
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = FALLBACK_IMAGE;
+                    }}
                   />
                 </button>
               ))}
@@ -251,6 +265,10 @@ const ProductDetails = () => {
                 src={activeImage}
                 alt={product.name}
                 className="w-full h-auto aspect-square object-cover transition-transform duration-700 group-hover:scale-105"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = FALLBACK_IMAGE;
+                }}
               />
             </div>
           </div>
@@ -370,14 +388,14 @@ const ProductDetails = () => {
                 onClick={handleAddToCart}
                 className="flex-1 py-4 px-6 rounded-xl border-2 border-gray-900 text-gray-900 font-bold hover:bg-gray-900 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none"
               >
-                Add to Cart
+                {isLoggedIn ? "Add to Cart" : "Login to Buy"}
               </button>
               <button
                 disabled={!product.stock}
                 onClick={handleBuyNow}
                 className="flex-1 py-4 px-6 rounded-xl bg-yellow-400 text-gray-900 font-bold shadow-[0_4px_0_0_#ca8a04] active:translate-y-1 active:shadow-none transition-all disabled:opacity-30 disabled:pointer-events-none"
               >
-                Buy It Now
+                {isLoggedIn ? "Buy It Now" : "Login to Buy"}
               </button>
             </div>
           </div>
