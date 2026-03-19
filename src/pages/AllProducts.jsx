@@ -4,14 +4,22 @@ import api from "../api/axios";
 import useAuthStore from "../auth/useAuthStore";
 import Footer from "../components/Footer";
 
+// ✅ Fix image URLs — handles relative paths from backend
 const getSafeImage = (product) => {
-  if (product.image && typeof product.image === "string") return product.image;
-  if (product.media?.[0]) return product.media[0];
-  if (product.images?.[0]) return product.images[0];
-  return "https://placehold.co/400x400?text=No+Preview";
-};
+  const raw =
+    product.image || product.media?.[0] || product.images?.[0] || null;
 
-const GUEST_TOKEN = import.meta.env.VITE_GUEST_TOKEN || "";
+  if (!raw) return "https://placehold.co/400x400?text=No+Preview";
+
+  // Already an absolute URL
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+
+  // Relative path — prepend /uploads/ if not already there
+  if (raw.startsWith("/uploads/")) return raw;
+  if (raw.startsWith("uploads/")) return `/${raw}`;
+
+  return `/uploads/${raw}`;
+};
 
 /* ─── Collapsible filter section ─── */
 const FilterSection = ({ title, children }) => {
@@ -45,17 +53,15 @@ const FilterSection = ({ title, children }) => {
   );
 };
 
-/* ─── Checkbox — label is the entire clickable area ─── */
+/* ─── Checkbox ─── */
 const FilterOption = ({ label, checked, onChange }) => (
   <label className="flex items-center gap-3 cursor-pointer group select-none py-0.5">
-    {/* Hidden native checkbox drives the state */}
     <input
       type="checkbox"
       checked={checked}
       onChange={onChange}
       className="sr-only"
     />
-    {/* Custom visual checkbox — pointer-events-none so label handles clicks */}
     <span
       className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center pointer-events-none transition-all duration-150
         ${checked ? "bg-yellow-400 border-yellow-400" : "border-gray-300 bg-white group-hover:border-yellow-400"}`}
@@ -203,7 +209,11 @@ const FilterPanel = ({
 /* ─── Main Page ─── */
 const AllProducts = () => {
   const navigate = useNavigate();
+
+  // ✅ Use token from store (works for both guest and logged-in users)
+  // Do NOT use VITE_GUEST_TOKEN — that's a static expired token
   const token = useAuthStore((state) => state.token);
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [products, setProducts] = useState([]);
@@ -233,21 +243,19 @@ const AllProducts = () => {
     }
   }, [searchParams]);
 
+  // ✅ Wait for token before fetching — this fixes the "need to refresh" bug
   useEffect(() => {
+    // If no token yet, wait — App.jsx is still fetching the guest token
+    if (!token) return;
+
     let isMounted = true;
-    let pollingInterval;
 
     const fetchProducts = async () => {
       try {
-        const activeToken = token || GUEST_TOKEN;
-        const response = await api.get(`/v1/box-types/type-list`, {
-          headers: {
-            Authorization: `Bearer ${activeToken}`,
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
-        });
+        setLoading(true);
+        const response = await api.get("/v1/box-types/type-list");
+        // ✅ Axios interceptor already attaches the token — no need to pass it manually
+
         if (!isMounted) return;
 
         let rawData = response.data;
@@ -277,20 +285,25 @@ const AllProducts = () => {
         } else {
           setProducts([]);
         }
-      } catch {
-        if (isMounted) setError("Unable to load products. Retrying…");
+      } catch (err) {
+        if (isMounted) {
+          setError("Unable to load products. Please try again.");
+          console.error(
+            "❌ Failed to fetch products:",
+            err?.response?.data || err.message,
+          );
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
     };
 
     fetchProducts();
-    pollingInterval = setInterval(fetchProducts, 10000);
+
     return () => {
       isMounted = false;
-      clearInterval(pollingInterval);
     };
-  }, [token]);
+  }, [token]); // ✅ Re-fetches when token changes (guest → logged in)
 
   const filteredProducts = useMemo(() => {
     return products
@@ -369,7 +382,6 @@ const AllProducts = () => {
         {/* ── MOBILE TOP BAR ── */}
         <div className="lg:hidden space-y-3">
           <div className="flex items-center gap-3">
-            {/* Filter button */}
             <button
               type="button"
               onClick={() => setMobileFilterOpen(true)}
@@ -396,7 +408,6 @@ const AllProducts = () => {
               )}
             </button>
 
-            {/* Sort */}
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
@@ -408,7 +419,6 @@ const AllProducts = () => {
             </select>
           </div>
 
-          {/* Active filter chips */}
           {activeFilterCount > 0 && (
             <div className="flex flex-wrap gap-2">
               {Object.entries(filters).map(([key, values]) =>
@@ -435,14 +445,11 @@ const AllProducts = () => {
         {/* ── MOBILE FILTER DRAWER ── */}
         {mobileFilterOpen && (
           <div className="fixed inset-0 z-50 flex lg:hidden">
-            {/* Backdrop */}
             <div
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
               onClick={() => setMobileFilterOpen(false)}
             />
-            {/* Slide-in panel from right */}
             <div className="relative ml-auto w-[85%] max-w-sm h-full bg-[#f8f7f4] shadow-2xl flex flex-col">
-              {/* Drawer header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-white">
                 <span className="font-bold text-gray-900">
                   Filters{" "}
@@ -461,7 +468,6 @@ const AllProducts = () => {
                 </button>
               </div>
 
-              {/* Scrollable filters */}
               <div className="flex-1 overflow-y-auto p-4">
                 <FilterPanel
                   filters={filters}
@@ -471,7 +477,6 @@ const AllProducts = () => {
                 />
               </div>
 
-              {/* Apply CTA */}
               <div className="p-4 border-t border-gray-200 bg-white">
                 <button
                   type="button"
@@ -487,7 +492,6 @@ const AllProducts = () => {
 
         {/* ── PRODUCTS GRID ── */}
         <main className="flex-1 min-w-0">
-          {/* Desktop sort bar */}
           <div className="hidden lg:flex items-center justify-between mb-6">
             <p className="text-sm text-gray-500">
               <span className="font-semibold text-gray-900">
@@ -522,6 +526,18 @@ const AllProducts = () => {
                 </div>
               ))}
             </div>
+          ) : error ? (
+            // ✅ Error state
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <p className="text-gray-900 font-semibold text-lg">{error}</p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-4 text-sm font-semibold text-yellow-600 underline underline-offset-2"
+              >
+                Reload page
+              </button>
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredProducts.map((product) => (
@@ -535,6 +551,12 @@ const AllProducts = () => {
                       src={getSafeImage(product)}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      onError={(e) => {
+                        // ✅ Fallback if image fails to load
+                        e.target.onerror = null;
+                        e.target.src =
+                          "https://placehold.co/400x400?text=No+Preview";
+                      }}
                     />
                   </div>
                   <div className="p-5 flex flex-col flex-1">
@@ -556,7 +578,7 @@ const AllProducts = () => {
           )}
 
           {/* Empty state */}
-          {filteredProducts.length === 0 && !loading && (
+          {filteredProducts.length === 0 && !loading && !error && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="w-14 h-14 rounded-full bg-yellow-100 flex items-center justify-center mb-4">
                 <svg

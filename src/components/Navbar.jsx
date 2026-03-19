@@ -9,7 +9,7 @@ function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const token = useAuthStore((state) => state.token);
+  const isLoggedIn = useAuthStore((state) => state.isLoggedIn); // ✅ use isLoggedIn not token
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
 
@@ -18,8 +18,6 @@ function Navbar() {
 
   const cartCount = useMemo(() => cart.length, [cart]);
   const wishlistCount = useMemo(() => wishlist.length, [wishlist]);
-
-  const isAuthenticated = !!token;
 
   const categories = [
     "Universal Box",
@@ -33,10 +31,11 @@ function Navbar() {
 
   const handleProtectedNavigation = useCallback(
     (path) => {
-      if (!isAuthenticated) navigate("/login");
+      if (!isLoggedIn)
+        navigate("/login"); // ✅ use isLoggedIn
       else navigate(path);
     },
-    [isAuthenticated, navigate],
+    [isLoggedIn, navigate],
   );
 
   const handleCustomDesignScroll = () => {
@@ -219,7 +218,7 @@ function Navbar() {
             </div>
 
             <div className="ml-4">
-              {isAuthenticated ? (
+              {isLoggedIn ? ( // ✅ use isLoggedIn
                 <div className="relative">
                   <button
                     onClick={() => toggleDropdown("user")}
@@ -440,7 +439,7 @@ function Navbar() {
               </div>
 
               <div className="border-t border-gray-100 px-4 py-4">
-                {isAuthenticated ? (
+                {isLoggedIn ? ( // ✅ use isLoggedIn
                   <div className="space-y-1">
                     <div className="flex items-center gap-3 px-3 py-2 mb-2">
                       <div className="h-9 w-9 rounded-full bg-gray-900 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
