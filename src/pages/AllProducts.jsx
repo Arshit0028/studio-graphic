@@ -4,14 +4,12 @@ import api from "../api/axios";
 import useAuthStore from "../auth/useAuthStore";
 import Footer from "../components/Footer";
 
-// ✅ API returns: "image": "http://3.110.128.94:8181/uploads/boxTypes/file.png"
-// Strip the backend origin → /uploads/boxTypes/file.png → Vercel rewrite handles it
 const fixImageUrl = (url) => {
   if (!url || typeof url !== "string")
     return "https://placehold.co/400x400?text=No+Preview";
   if (url.startsWith("http://") || url.startsWith("https://")) {
     try {
-      return new URL(url).pathname; // → /uploads/boxTypes/file.png
+      return new URL(url).pathname;
     } catch {
       return "https://placehold.co/400x400?text=No+Preview";
     }
@@ -23,37 +21,41 @@ const fixImageUrl = (url) => {
 const FilterSection = ({ title, children }) => {
   const [open, setOpen] = useState(true);
   return (
-    <div className="border-b border-gray-100 last:border-b-0">
+    <div className="mb-1">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left"
+        className="w-full flex items-center justify-between px-4 py-3 rounded-xl hover:bg-yellow-50 transition-colors duration-150 text-left group"
       >
-        <span className="text-xs font-bold tracking-widest uppercase text-gray-500">
+        <span className="text-[10px] font-black tracking-[0.18em] uppercase text-gray-400 group-hover:text-yellow-600 transition-colors">
           {title}
         </span>
-        <svg
-          className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-          viewBox="0 0 12 12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
+        <span
+          className={`w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200 ${open ? "bg-yellow-400 rotate-180" : "bg-gray-100"}`}
         >
-          <path
-            d="M2 4.5l4 4 4-4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+          <svg
+            className={`w-2.5 h-2.5 ${open ? "text-gray-900" : "text-gray-400"}`}
+            viewBox="0 0 10 10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path
+              d="M2 3.5l3 3 3-3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
       </button>
-      {open && <div className="pb-5 px-5 space-y-5">{children}</div>}
+      {open && <div className="mt-1 mx-2 mb-3 space-y-0.5">{children}</div>}
     </div>
   );
 };
 
 /* ─── Checkbox ─── */
 const FilterOption = ({ label, checked, onChange }) => (
-  <label className="flex items-center gap-3 cursor-pointer group select-none py-0.5">
+  <label className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer group select-none transition-all duration-150 hover:bg-yellow-50">
     <input
       type="checkbox"
       checked={checked}
@@ -61,8 +63,11 @@ const FilterOption = ({ label, checked, onChange }) => (
       className="sr-only"
     />
     <span
-      className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center pointer-events-none transition-all duration-150
-        ${checked ? "bg-yellow-400 border-yellow-400" : "border-gray-300 bg-white group-hover:border-yellow-400"}`}
+      className={`w-[18px] h-[18px] rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all duration-150 ${
+        checked
+          ? "bg-yellow-400 border-yellow-400 shadow-sm shadow-yellow-200"
+          : "border-gray-200 bg-white group-hover:border-yellow-300"
+      }`}
     >
       {checked && (
         <svg
@@ -70,7 +75,7 @@ const FilterOption = ({ label, checked, onChange }) => (
           viewBox="0 0 10 10"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2.5"
+          strokeWidth="2.8"
         >
           <path
             d="M2 5l2.5 2.5L8 3"
@@ -81,11 +86,23 @@ const FilterOption = ({ label, checked, onChange }) => (
       )}
     </span>
     <span
-      className={`text-sm transition-colors ${checked ? "text-gray-900 font-semibold" : "text-gray-600 group-hover:text-gray-900"}`}
+      className={`text-sm leading-none transition-colors ${
+        checked
+          ? "text-gray-900 font-semibold"
+          : "text-gray-500 group-hover:text-gray-800"
+      }`}
     >
       {label}
     </span>
+    {checked && (
+      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-yellow-400 flex-shrink-0" />
+    )}
   </label>
+);
+
+/* ─── Divider ─── */
+const Divider = () => (
+  <div className="mx-4 my-1 border-t border-dashed border-gray-100" />
 );
 
 /* ─── Filter panel ─── */
@@ -96,105 +113,185 @@ const FilterPanel = ({
   activeFilterCount,
 }) => (
   <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-    <div className="px-5 py-4 flex items-center justify-between border-b border-gray-100">
-      <span className="text-sm font-bold text-gray-900">Filters</span>
+    {/* Header */}
+    <div className="px-5 pt-5 pb-4 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <div className="w-7 h-7 rounded-lg bg-yellow-400 flex items-center justify-center">
+          <svg
+            className="w-3.5 h-3.5 text-gray-900"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 4h18M7 9h10M11 14h2"
+            />
+          </svg>
+        </div>
+        <span className="text-sm font-black text-gray-900 tracking-tight">
+          Filters
+        </span>
+        {activeFilterCount > 0 && (
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-900 text-white text-[10px] font-black">
+            {activeFilterCount}
+          </span>
+        )}
+      </div>
       {activeFilterCount > 0 && (
         <button
           type="button"
           onClick={clearAllFilters}
-          className="text-[11px] font-semibold text-yellow-600 hover:text-yellow-700 underline underline-offset-2 transition-colors"
+          className="text-[11px] font-bold text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
         >
-          Clear all ({activeFilterCount})
+          <svg
+            className="w-3 h-3"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M2 2l8 8M10 2l-8 8" strokeLinecap="round" />
+          </svg>
+          Clear all
         </button>
       )}
     </div>
-    <FilterSection title="Price">
-      <FilterOption
-        label="Under ₹1,000"
-        checked={filters.price.includes("low")}
-        onChange={() => toggleFilter("price", "low")}
-      />
-      <FilterOption
-        label="₹1,000 – ₹2,000"
-        checked={filters.price.includes("mid")}
-        onChange={() => toggleFilter("price", "mid")}
-      />
-      <FilterOption
-        label="₹2,000 – ₹5,000"
-        checked={filters.price.includes("high")}
-        onChange={() => toggleFilter("price", "high")}
-      />
-    </FilterSection>
-    <FilterSection title="Box Type">
-      <FilterOption
-        label="Universal Box"
-        checked={filters.type.includes("Universal Box")}
-        onChange={() => toggleFilter("type", "Universal Box")}
-      />
-      <FilterOption
-        label="Hamper Boxes"
-        checked={filters.type.includes("Hamper Boxes")}
-        onChange={() => toggleFilter("type", "Hamper Boxes")}
-      />
-    </FilterSection>
-    <FilterSection title="Size">
-      <FilterOption
-        label="Small"
-        checked={filters.size.includes("small")}
-        onChange={() => toggleFilter("size", "small")}
-      />
-      <FilterOption
-        label="Medium"
-        checked={filters.size.includes("medium")}
-        onChange={() => toggleFilter("size", "medium")}
-      />
-      <FilterOption
-        label="Large"
-        checked={filters.size.includes("large")}
-        onChange={() => toggleFilter("size", "large")}
-      />
-    </FilterSection>
-    <FilterSection title="Material">
-      <FilterOption
-        label="Rigid"
-        checked={filters.material.includes("Rigid")}
-        onChange={() => toggleFilter("material", "Rigid")}
-      />
-      <FilterOption
-        label="Kraft"
-        checked={filters.material.includes("Kraft")}
-        onChange={() => toggleFilter("material", "Kraft")}
-      />
-    </FilterSection>
-    <FilterSection title="Use Case">
-      <FilterOption
-        label="E-commerce"
-        checked={filters.useCase.includes("ecommerce")}
-        onChange={() => toggleFilter("useCase", "ecommerce")}
-      />
-      <FilterOption
-        label="Gift"
-        checked={filters.useCase.includes("gift")}
-        onChange={() => toggleFilter("useCase", "gift")}
-      />
-      <FilterOption
-        label="Electronics"
-        checked={filters.useCase.includes("electronics")}
-        onChange={() => toggleFilter("useCase", "electronics")}
-      />
-    </FilterSection>
-    <FilterSection title="Features">
-      <FilterOption
-        label="Eco-friendly"
-        checked={filters.other.includes("eco")}
-        onChange={() => toggleFilter("other", "eco")}
-      />
-      <FilterOption
-        label="Minimal Wastage"
-        checked={filters.other.includes("minimal")}
-        onChange={() => toggleFilter("other", "minimal")}
-      />
-    </FilterSection>
+
+    <Divider />
+
+    <div className="py-2">
+      <FilterSection title="Price Range">
+        <FilterOption
+          label="Under ₹1,000"
+          checked={filters.price.includes("low")}
+          onChange={() => toggleFilter("price", "low")}
+        />
+        <FilterOption
+          label="₹1,000 – ₹2,000"
+          checked={filters.price.includes("mid")}
+          onChange={() => toggleFilter("price", "mid")}
+        />
+        <FilterOption
+          label="₹2,000 – ₹5,000"
+          checked={filters.price.includes("high")}
+          onChange={() => toggleFilter("price", "high")}
+        />
+      </FilterSection>
+
+      <Divider />
+
+      <FilterSection title="Box Type">
+        <FilterOption
+          label="Universal Box"
+          checked={filters.type.includes("Universal Box")}
+          onChange={() => toggleFilter("type", "Universal Box")}
+        />
+        <FilterOption
+          label="Hamper Boxes"
+          checked={filters.type.includes("Hamper Boxes")}
+          onChange={() => toggleFilter("type", "Hamper Boxes")}
+        />
+      </FilterSection>
+
+      <Divider />
+
+      <FilterSection title="Size">
+        <FilterOption
+          label="Small"
+          checked={filters.size.includes("small")}
+          onChange={() => toggleFilter("size", "small")}
+        />
+        <FilterOption
+          label="Medium"
+          checked={filters.size.includes("medium")}
+          onChange={() => toggleFilter("size", "medium")}
+        />
+        <FilterOption
+          label="Large"
+          checked={filters.size.includes("large")}
+          onChange={() => toggleFilter("size", "large")}
+        />
+      </FilterSection>
+
+      <Divider />
+
+      <FilterSection title="Material">
+        <FilterOption
+          label="Rigid"
+          checked={filters.material.includes("Rigid")}
+          onChange={() => toggleFilter("material", "Rigid")}
+        />
+        <FilterOption
+          label="Kraft"
+          checked={filters.material.includes("Kraft")}
+          onChange={() => toggleFilter("material", "Kraft")}
+        />
+      </FilterSection>
+
+      <Divider />
+
+      <FilterSection title="Use Case">
+        <FilterOption
+          label="E-commerce"
+          checked={filters.useCase.includes("ecommerce")}
+          onChange={() => toggleFilter("useCase", "ecommerce")}
+        />
+        <FilterOption
+          label="Gift"
+          checked={filters.useCase.includes("gift")}
+          onChange={() => toggleFilter("useCase", "gift")}
+        />
+        <FilterOption
+          label="Electronics"
+          checked={filters.useCase.includes("electronics")}
+          onChange={() => toggleFilter("useCase", "electronics")}
+        />
+      </FilterSection>
+
+      <Divider />
+
+      <FilterSection title="Features">
+        <FilterOption
+          label="Eco-friendly"
+          checked={filters.other.includes("eco")}
+          onChange={() => toggleFilter("other", "eco")}
+        />
+        <FilterOption
+          label="Minimal Wastage"
+          checked={filters.other.includes("minimal")}
+          onChange={() => toggleFilter("other", "minimal")}
+        />
+      </FilterSection>
+    </div>
+
+    {/* Active filter tags */}
+    {activeFilterCount > 0 && (
+      <>
+        <Divider />
+        <div className="px-4 py-3 flex flex-wrap gap-1.5">
+          {Object.entries(filters).map(([key, values]) =>
+            values.map((val) => (
+              <span
+                key={`${key}-${val}`}
+                className="inline-flex items-center gap-1 bg-yellow-50 border border-yellow-200 text-yellow-800 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+              >
+                {val}
+                <button
+                  type="button"
+                  onClick={() => toggleFilter(key, val)}
+                  className="hover:text-red-500 transition-colors text-yellow-600 ml-0.5 leading-none"
+                >
+                  ×
+                </button>
+              </span>
+            )),
+          )}
+        </div>
+      </>
+    )}
   </div>
 );
 
@@ -231,7 +328,6 @@ const AllProducts = () => {
     }
   }, [searchParams]);
 
-  // ✅ Wait for token before fetching
   useEffect(() => {
     if (!token) return;
 
@@ -243,14 +339,12 @@ const AllProducts = () => {
         const response = await api.get("/v1/box-types/type-list");
         if (!isMounted) return;
 
-        // ✅ Correct response shape: response.data.data.data[]
         const raw = response.data;
         let safeData = [];
 
         if (Array.isArray(raw)) safeData = raw;
         else if (Array.isArray(raw?.data)) safeData = raw.data;
-        else if (Array.isArray(raw?.data?.data))
-          safeData = raw.data.data; // ✅ actual shape
+        else if (Array.isArray(raw?.data?.data)) safeData = raw.data.data;
         else {
           const found = Object.values(raw?.data || {}).find(Array.isArray);
           if (found) safeData = found;
@@ -263,7 +357,6 @@ const AllProducts = () => {
               _id: item._id || item.id || `temp-${Math.random()}`,
               name: item.name || item.title || "Untitled Box",
               price: Number(item.price) || 0,
-              // ✅ API returns single "image" field (not array)
               image: fixImageUrl(item.image),
             })),
           );
@@ -352,7 +445,7 @@ const AllProducts = () => {
 
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-10 flex flex-col lg:flex-row gap-8">
         {/* DESKTOP SIDEBAR */}
-        <aside className="hidden lg:block w-60 flex-shrink-0">
+        <aside className="hidden lg:block w-64 flex-shrink-0">
           <div className="sticky top-8">
             <FilterPanel
               filters={filters}
@@ -490,7 +583,6 @@ const AllProducts = () => {
             </select>
           </div>
 
-          {/* Loading skeletons */}
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
