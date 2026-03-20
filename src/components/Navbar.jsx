@@ -150,12 +150,12 @@ function Navbar() {
               )}
             </div>
 
-            <NavLink
+            {/* <NavLink
               to="/allproducts"
               className="block px-4 py-2.5 text-sm !text-gray-600 hover:bg-gray-50 hover:!text-gray-900 !no-underline transition-colors"
             >
               Box Types
-            </NavLink>
+            </NavLink> */}
 
             <NavLink
               to="/#custom-design"
