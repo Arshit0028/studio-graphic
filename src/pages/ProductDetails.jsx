@@ -12,6 +12,23 @@ import TopSellingProducts from "../components/TopSellingProducts";
 const FALLBACK_IMAGE =
   "https://placehold.co/600x600/eeeeee/333333?text=No+Image";
 
+/* ─── Fix image URL for both dev and production ─── */
+const fixImageUrl = (url) => {
+  if (!url) return FALLBACK_IMAGE;
+
+  // Rewrite http://3.110.128.94:8181/uploads/... → /uploads/...
+  // Dev: Vite proxy handles /uploads | Production: Vercel rewrite handles /uploads
+  if (url.includes("3.110.128.94:8181")) {
+    return url.replace(/^https?:\/\/3\.110\.128\.94:8181/, "");
+  }
+
+  if (url.startsWith("http")) return url;
+
+  const BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://54.252.174.35:9000";
+  return `${BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+};
+
 const useIsMobile = () => {
   const [mobile, setMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false,
@@ -45,7 +62,10 @@ const ProductDetails = () => {
       const res = await api.get(`/v1/boxes/related/69a7237d0b3d4d8d324a26af`);
       const item = res.data?.data?.related.find((b) => b.box?._id === id);
 
-      const images = item.images?.map((i) => i.imageUrl) || [FALLBACK_IMAGE];
+      // ✅ Apply fixImageUrl to every image
+      const images = item.images?.map((i) => fixImageUrl(i.imageUrl)) || [
+        FALLBACK_IMAGE,
+      ];
 
       const allDimensions = [
         ...new Map(
