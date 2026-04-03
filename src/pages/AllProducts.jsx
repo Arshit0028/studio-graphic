@@ -6,9 +6,18 @@ import Footer from "../components/Footer";
 import { categories } from "../constants/categories";
 import { useProductsStore } from "../store/productsStore";
 
+/* ─── Fix image URL for both dev and production ─── */
 const fixImageUrl = (url) => {
   if (!url) return "/placeholder.png";
+
+  // Rewrite http://3.110.128.94:8181/uploads/... → /uploads/...
+  // Dev: Vite proxy handles /uploads | Production: Vercel rewrite handles /uploads
+  if (url.includes("3.110.128.94:8181")) {
+    return url.replace(/^https?:\/\/3\.110\.128\.94:8181/, "");
+  }
+
   if (url.startsWith("http")) return url;
+
   const BASE_URL =
     import.meta.env.VITE_API_BASE_URL || "http://54.252.174.35:9000";
   return `${BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
@@ -471,18 +480,14 @@ const AllProducts = () => {
                 ...box,
                 _id: box._id || box.id || `temp-${Math.random()}`,
                 name: box.name || box.title || "Untitled Box",
-                // ── price from cheapest variant ──
                 basePrice: cheapestVariant?.basePrice || 0,
                 moq: cheapestVariant?.moq || 0,
                 dimensionLabel: cheapestVariant?.dimension?.label || "",
-                // ── size classification for filter ──
                 sizeClass: classifySize(cheapestVariant?.dimension),
-                // ── eco flags from box level ──
                 ecoFriendly: box.ecoFriendly || false,
                 minimalWastage: box.minimalWastage || false,
-                // ── image ──
+                // ✅ strips IP:port → /uploads/... path for Vercel + Vite proxy
                 image: fixImageUrl(primaryImage),
-                // ── keep raw for advanced use ──
                 _variants: variants,
               };
             }),
@@ -513,11 +518,11 @@ const AllProducts = () => {
   const filteredProducts = useMemo(() => {
     return products
       .filter((product) => {
-        // ── Type / category filter ──
+        // Type / category filter
         if (filters.type.length > 0 && !filters.type.includes(product.category))
           return false;
 
-        // ── Price filter (against basePrice from variant) ──
+        // Price filter (against basePrice from variant)
         if (filters.price.length > 0) {
           const price = product.basePrice || 0;
           const match = filters.price.some((range) => {
@@ -529,14 +534,14 @@ const AllProducts = () => {
           if (!match) return false;
         }
 
-        // ── Size filter (classified from dimension volume) ──
+        // Size filter (classified from dimension volume)
         if (
           filters.size.length > 0 &&
           !filters.size.includes(product.sizeClass)
         )
           return false;
 
-        // ── Features filter ──
+        // Features filter
         if (filters.other.length > 0) {
           if (filters.other.includes("eco") && !product.ecoFriendly)
             return false;
