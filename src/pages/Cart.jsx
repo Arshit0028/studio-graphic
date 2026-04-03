@@ -4,7 +4,13 @@ import { useNavigate } from "react-router-dom";
 
 function Cart() {
   const navigate = useNavigate();
-  const { cart, addToCart, removeFromCart, clearCart } = useCartStore();
+  const {
+    cart,
+    incrementQuantity,
+    decrementQuantity,
+    removeFromCart,
+    clearCart,
+  } = useCartStore();
 
   const subtotal = useMemo(() => {
     return cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -32,7 +38,6 @@ function Cart() {
       <h2 className="mb-4 fw-bold">Shopping Cart</h2>
 
       <div className="row">
-        {/* Cart Items */}
         <div className="col-lg-8">
           {cart.map((item) => (
             <div key={item.id} className="card mb-3 shadow-sm border-0">
@@ -55,16 +60,16 @@ function Cart() {
                   <div className="d-flex justify-content-center align-items-center gap-2">
                     <button
                       className="btn btn-sm btn-outline-dark"
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => decrementQuantity(item.id)}
                     >
-                      -
+                      −
                     </button>
 
                     <span>{item.quantity}</span>
 
                     <button
                       className="btn btn-sm btn-outline-dark"
-                      onClick={() => addToCart(item)}
+                      onClick={() => incrementQuantity(item.id)}
                     >
                       +
                     </button>
@@ -85,7 +90,6 @@ function Cart() {
           ))}
         </div>
 
-        {/* Summary */}
         <div className="col-lg-4">
           <div className="card shadow border-0 p-4">
             <h5 className="fw-bold mb-3">Order Summary</h5>

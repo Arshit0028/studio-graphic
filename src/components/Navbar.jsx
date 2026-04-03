@@ -4,6 +4,7 @@ import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import useAuthStore from "../auth/useAuthStore";
 import { useCartStore } from "../auth/cartStore";
 import { useWishlistStore } from "../auth/wishlistStore";
+import { categories } from "../constants/categories";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -18,16 +19,6 @@ function Navbar() {
 
   const cartCount = useMemo(() => cart.length, [cart]);
   const wishlistCount = useMemo(() => wishlist.length, [wishlist]);
-
-  const categories = [
-    "Universal Box",
-    "Rigid Box",
-    "Mailer Box",
-    "Chocolate Box",
-    "Hamper Box",
-    "Tuck Top Box",
-    "Gift Box",
-  ];
 
   const handleProtectedNavigation = useCallback(
     (path) => {

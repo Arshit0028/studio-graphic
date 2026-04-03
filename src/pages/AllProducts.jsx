@@ -3,18 +3,25 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../api/axios";
 import useAuthStore from "../auth/useAuthStore";
 import Footer from "../components/Footer";
+import { categories } from "../constants/categories";
+import { useProductsStore } from "../store/productsStore";
 
 const fixImageUrl = (url) => {
-  if (!url || typeof url !== "string")
-    return "https://placehold.co/400x400?text=No+Preview";
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    try {
-      return new URL(url).pathname;
-    } catch {
-      return "https://placehold.co/400x400?text=No+Preview";
-    }
-  }
-  return url.startsWith("/") ? url : `/${url}`;
+  if (!url) return "/placeholder.png";
+  if (url.startsWith("http")) return url;
+  const BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://54.252.174.35:9000";
+  return `${BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+};
+
+/* ─── Size classifier from dimensions ─── */
+const classifySize = (dimension) => {
+  if (!dimension) return "medium";
+  const vol =
+    (dimension.length || 0) * (dimension.width || 0) * (dimension.height || 0);
+  if (vol <= 120) return "small";
+  if (vol <= 600) return "medium";
+  return "large";
 };
 
 /* ─── Collapsible filter section ─── */
@@ -165,17 +172,17 @@ const FilterPanel = ({
     <div className="py-2">
       <FilterSection title="Price Range">
         <FilterOption
-          label="Under ₹1,000"
+          label="Under ₹25"
           checked={filters.price.includes("low")}
           onChange={() => toggleFilter("price", "low")}
         />
         <FilterOption
-          label="₹1,000 – ₹2,000"
+          label="₹25 – ₹50"
           checked={filters.price.includes("mid")}
           onChange={() => toggleFilter("price", "mid")}
         />
         <FilterOption
-          label="₹2,000 – ₹5,000"
+          label="Above ₹50"
           checked={filters.price.includes("high")}
           onChange={() => toggleFilter("price", "high")}
         />
@@ -184,16 +191,14 @@ const FilterPanel = ({
       <Divider />
 
       <FilterSection title="Box Type">
-        <FilterOption
-          label="Universal Box"
-          checked={filters.type.includes("Universal Box")}
-          onChange={() => toggleFilter("type", "Universal Box")}
-        />
-        <FilterOption
-          label="Hamper Boxes"
-          checked={filters.type.includes("Hamper Boxes")}
-          onChange={() => toggleFilter("type", "Hamper Boxes")}
-        />
+        {categories.map((cat) => (
+          <FilterOption
+            key={cat}
+            label={cat}
+            checked={filters.type.includes(cat)}
+            onChange={() => toggleFilter("type", cat)}
+          />
+        ))}
       </FilterSection>
 
       <Divider />
@@ -295,11 +300,104 @@ const FilterPanel = ({
   </div>
 );
 
+/* ─── Product Card ─── */
+const ProductCard = React.memo(({ product, onClick }) => (
+  <div
+    onClick={onClick}
+    className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 cursor-pointer overflow-hidden flex flex-col"
+  >
+    {/* Image */}
+    <div className="relative aspect-square bg-gray-50 overflow-hidden">
+      <img
+        src={product.image}
+        alt={product.name}
+        loading="lazy"
+        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.src = "https://placehold.co/400x400?text=No+Preview";
+        }}
+      />
+      {/* Badges */}
+      <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+        {product.ecoFriendly && (
+          <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+            <svg
+              className="w-2.5 h-2.5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Eco
+          </span>
+        )}
+        {product.minimalWastage && (
+          <span className="inline-flex items-center gap-1 bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+            ♻ Low Waste
+          </span>
+        )}
+      </div>
+    </div>
+
+    {/* Content */}
+    <div className="p-5 flex flex-col flex-1">
+      <h5 className="font-bold text-gray-900 text-base mb-1 truncate group-hover:text-yellow-600 transition-colors leading-snug">
+        {product.name}
+      </h5>
+      {product.shortDescription && (
+        <p className="text-xs text-gray-400 line-clamp-2 mb-3 leading-relaxed">
+          {product.shortDescription}
+        </p>
+      )}
+
+      {/* Variant info */}
+      {product.basePrice > 0 && (
+        <div className="flex items-center gap-1.5 mb-3">
+          <span className="text-xs text-gray-400 font-medium">From</span>
+          <span className="text-sm font-black text-gray-900">
+            ₹{product.basePrice}
+          </span>
+          <span className="text-[10px] text-gray-400">/ unit</span>
+          {product.moq > 0 && (
+            <span className="ml-auto text-[10px] bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">
+              MOQ: {product.moq}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Size chip */}
+      {product.dimensionLabel && (
+        <div className="mb-3">
+          <span className="text-[10px] bg-yellow-50 border border-yellow-100 text-yellow-700 font-semibold px-2 py-0.5 rounded-full">
+            {product.dimensionLabel}
+          </span>
+        </div>
+      )}
+
+      <div className="pt-4 border-t border-gray-100 flex justify-between items-center mt-auto">
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          Explore
+        </span>
+        <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center group-hover:translate-x-1 transition-transform">
+          <span className="text-gray-900 font-bold">→</span>
+        </div>
+      </div>
+    </div>
+  </div>
+));
+
 /* ─── Main Page ─── */
 const AllProducts = () => {
   const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { fetchProducts } = useProductsStore();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -329,36 +427,65 @@ const AllProducts = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!token) return;
+    fetchProducts(token);
+  }, [token, fetchProducts]);
 
+  useEffect(() => {
+    if (!token) return;
     let isMounted = true;
 
-    const fetchProducts = async () => {
+    const loadProducts = async () => {
       try {
         setLoading(true);
-        const response = await api.get("/v1/box-types/type-list");
+        const response = await api.get(
+          "v1/boxes/related/69a7237d0b3d4d8d324a26af",
+        );
         if (!isMounted) return;
 
         const raw = response.data;
         let safeData = [];
 
-        if (Array.isArray(raw)) safeData = raw;
-        else if (Array.isArray(raw?.data)) safeData = raw.data;
-        else if (Array.isArray(raw?.data?.data)) safeData = raw.data.data;
-        else {
-          const found = Object.values(raw?.data || {}).find(Array.isArray);
-          if (found) safeData = found;
+        if (Array.isArray(raw?.data?.related)) {
+          safeData = raw.data.related;
         }
 
         if (safeData.length > 0) {
           setProducts(
-            safeData.map((item) => ({
-              ...item,
-              _id: item._id || item.id || `temp-${Math.random()}`,
-              name: item.name || item.title || "Untitled Box",
-              price: Number(item.price) || 0,
-              image: fixImageUrl(item.image),
-            })),
+            safeData.map((item) => {
+              const box = item.box || {};
+              const images = item.images || [];
+              const variants = item.variants || [];
+
+              // Pick cheapest variant for price display
+              const cheapestVariant =
+                variants.length > 0
+                  ? variants.reduce((a, b) =>
+                      (a.basePrice || 0) <= (b.basePrice || 0) ? a : b,
+                    )
+                  : null;
+
+              const primaryImage =
+                images.length > 0 ? images[0].imageUrl : null;
+
+              return {
+                ...box,
+                _id: box._id || box.id || `temp-${Math.random()}`,
+                name: box.name || box.title || "Untitled Box",
+                // ── price from cheapest variant ──
+                basePrice: cheapestVariant?.basePrice || 0,
+                moq: cheapestVariant?.moq || 0,
+                dimensionLabel: cheapestVariant?.dimension?.label || "",
+                // ── size classification for filter ──
+                sizeClass: classifySize(cheapestVariant?.dimension),
+                // ── eco flags from box level ──
+                ecoFriendly: box.ecoFriendly || false,
+                minimalWastage: box.minimalWastage || false,
+                // ── image ──
+                image: fixImageUrl(primaryImage),
+                // ── keep raw for advanced use ──
+                _variants: variants,
+              };
+            }),
           );
           setError(null);
         } else {
@@ -377,7 +504,7 @@ const AllProducts = () => {
       }
     };
 
-    fetchProducts();
+    loadProducts();
     return () => {
       isMounted = false;
     };
@@ -386,22 +513,42 @@ const AllProducts = () => {
   const filteredProducts = useMemo(() => {
     return products
       .filter((product) => {
-        if (filters.type.length > 0 && !filters.type.includes(product.name))
+        // ── Type / category filter ──
+        if (filters.type.length > 0 && !filters.type.includes(product.category))
           return false;
+
+        // ── Price filter (against basePrice from variant) ──
         if (filters.price.length > 0) {
-          const price = product.price || 0;
-          return filters.price.some((range) => {
-            if (range === "low") return price <= 1000;
-            if (range === "mid") return price > 1000 && price <= 2000;
-            if (range === "high") return price > 2000 && price <= 5000;
+          const price = product.basePrice || 0;
+          const match = filters.price.some((range) => {
+            if (range === "low") return price < 25;
+            if (range === "mid") return price >= 25 && price <= 50;
+            if (range === "high") return price > 50;
             return false;
           });
+          if (!match) return false;
         }
+
+        // ── Size filter (classified from dimension volume) ──
+        if (
+          filters.size.length > 0 &&
+          !filters.size.includes(product.sizeClass)
+        )
+          return false;
+
+        // ── Features filter ──
+        if (filters.other.length > 0) {
+          if (filters.other.includes("eco") && !product.ecoFriendly)
+            return false;
+          if (filters.other.includes("minimal") && !product.minimalWastage)
+            return false;
+        }
+
         return true;
       })
       .sort((a, b) => {
-        if (sort === "price-asc") return a.price - b.price;
-        if (sort === "price-desc") return b.price - a.price;
+        if (sort === "price-asc") return a.basePrice - b.basePrice;
+        if (sort === "price-desc") return b.basePrice - a.basePrice;
         return 0;
       });
   }, [products, filters, sort]);
@@ -432,6 +579,7 @@ const AllProducts = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f8f7f4] font-sans">
+      {/* ── Header ── */}
       <header className="bg-yellow-400 py-10 md:py-12 px-6 shadow-sm">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 tracking-tight">
@@ -612,37 +760,11 @@ const AllProducts = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredProducts.map((product) => (
-                <div
+                <ProductCard
                   key={product._id}
+                  product={product}
                   onClick={() => navigate(`/product/${product._id}`)}
-                  className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 cursor-pointer overflow-hidden flex flex-col"
-                >
-                  <div className="aspect-square bg-gray-50 overflow-hidden">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src =
-                          "https://placehold.co/400x400?text=No+Preview";
-                      }}
-                    />
-                  </div>
-                  <div className="p-5 flex flex-col flex-1">
-                    <h5 className="font-bold text-gray-900 text-lg mb-2 truncate group-hover:text-yellow-600 transition-colors">
-                      {product.name}
-                    </h5>
-                    <div className="pt-4 border-t border-gray-100 flex justify-between items-center mt-auto">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                        Explore
-                      </span>
-                      <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center group-hover:translate-x-1 transition-transform">
-                        <span className="text-gray-900 font-bold">→</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                />
               ))}
             </div>
           )}

@@ -88,8 +88,8 @@ function PopularCategories() {
     };
   }, [token]);
 
-  const handleCategoryClick = (queryName) => {
-    navigate(`/allproducts?category=${encodeURIComponent(queryName)}`);
+  const handleCategoryClick = () => {
+    navigate(`/allproducts`);
   };
 
   return (

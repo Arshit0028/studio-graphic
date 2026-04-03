@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import api from "../api/axios";
 
 import { useCartStore } from "../auth/cartStore";
@@ -8,399 +9,644 @@ import useAuthStore from "../auth/useAuthStore";
 import Footer from "../components/Footer";
 import TopSellingProducts from "../components/TopSellingProducts";
 
-// ✅ API returns: "image": "http://3.110.128.94:8181/uploads/boxTypes/file.png"
-// Strip backend origin → /uploads/boxTypes/file.png → Vercel rewrite handles it
-const fixImageUrl = (url) => {
-  if (!url || typeof url !== "string") return null;
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    try {
-      return new URL(url).pathname; // → /uploads/boxTypes/file.png
-    } catch {
-      return null;
-    }
-  }
-  return url.startsWith("/") ? url : `/${url}`;
-};
-
 const FALLBACK_IMAGE =
   "https://placehold.co/600x600/eeeeee/333333?text=No+Image";
+
+const useIsMobile = () => {
+  const [mobile, setMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false,
+  );
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth < 768);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return mobile;
+};
 
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
-  const addToCart = useCartStore((state) => state.addToCart);
-  const token = useAuthStore((state) => state.token);
-  const isLoggedIn = useAuthStore((state) => state.isLoggedIn); // ✅ not !!token
+  const addToCart = useCartStore((s) => s.addToCart);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
 
   const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
   const [activeImage, setActiveImage] = useState("");
-  const [selectedDimension, setSelectedDimension] = useState("");
-  const [selectedGsm, setSelectedGsm] = useState("");
+  const [selectedDimension, setSelectedDimension] = useState(null);
+  const [selectedGsm, setSelectedGsm] = useState(null);
+  const [openAccordion, setOpenAccordion] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [wishlisted, setWishlisted] = useState(false);
 
-  // ✅ Wait for token before fetching
   useEffect(() => {
-    if (!token) return;
+    const fetchData = async () => {
+      const res = await api.get(`/v1/boxes/related/69a7237d0b3d4d8d324a26af`);
+      const item = res.data?.data?.related.find((b) => b.box?._id === id);
 
-    let isMounted = true;
+      const images = item.images?.map((i) => i.imageUrl) || [FALLBACK_IMAGE];
 
-    const fetchProductDetails = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+      const allDimensions = [
+        ...new Map(
+          item.variants?.map((v) => [v.dimension?.label, v.dimension?.label]),
+        ).values(),
+      ].filter(Boolean);
 
-        // ✅ Axios interceptor attaches token automatically
-        const response = await api.get(`/v1/box-types/${id}`);
-        if (!isMounted) return;
+      const allGsms = [
+        ...new Set(item.variants?.map((v) => v.gsm).filter(Boolean)),
+      ];
 
-        let rawData = response.data;
-        let safeData = null;
+      const variants =
+        item.variants?.map((v) => ({
+          id: v._id,
+          sku: v.sku,
+          price: v.basePrice,
+          moq: v.moq,
+          gsm: v.gsm,
+          dimension: v.dimension?.label,
+        })) || [];
 
-        if (rawData && typeof rawData === "object") {
-          if (rawData._id || rawData.name || rawData.title) {
-            safeData = rawData;
-          } else if (rawData.data) {
-            if (Array.isArray(rawData.data) && rawData.data.length > 0) {
-              safeData = rawData.data[0];
-            } else if (typeof rawData.data === "object") {
-              if (rawData.data._id || rawData.data.name || rawData.data.title) {
-                safeData = rawData.data;
-              } else if (rawData.data.data) {
-                // ✅ Handle nested data.data shape
-                const inner = rawData.data.data;
-                if (Array.isArray(inner) && inner.length > 0)
-                  safeData = inner[0];
-                else if (inner._id || inner.name) safeData = inner;
-              } else {
-                safeData = Object.values(rawData.data).find(
-                  (val) =>
-                    val &&
-                    typeof val === "object" &&
-                    (val._id || val.name || val.title),
-                );
-              }
-            }
-          }
+      const data = {
+        id: item.box._id,
+        name: item.box.name,
+        category: item.box.category || "Box",
+        description: item.box.longDescription,
+        images,
+        variants,
+        allDimensions,
+        allGsms,
+        accordions: item.accordions || [],
+        features: item.features || [
+          "Free Shipping on all orders. No Terms & conditions Apply.",
+          "In stock, ready to ship",
+          "Eco-friendly",
+        ],
+      };
 
-          if (!safeData) {
-            safeData = Object.values(rawData).find(
-              (val) =>
-                val &&
-                typeof val === "object" &&
-                (val._id || val.name || val.title),
-            );
-          }
-        }
-
-        if (safeData) {
-          // ✅ API uses single "image" field, not array
-          const imageUrl = fixImageUrl(safeData.image) || FALLBACK_IMAGE;
-
-          const formattedProduct = {
-            id: safeData._id || safeData.id || id,
-            name: safeData.name || safeData.title || "Untitled Box",
-            sku: safeData.sku || `SKU-${id.slice(0, 5)}`,
-            price: Number(safeData.price) || 0,
-            oldPrice: safeData.oldPrice ? Number(safeData.oldPrice) : null,
-            stock: safeData.stock !== undefined ? safeData.stock : true,
-            description: safeData.description || "No description available.",
-            type: safeData.type || "Packaging",
-            material: safeData.material || "Standard Corrugated",
-            useCase: safeData.useCase || "General Purpose",
-            eco: safeData.eco || ["Recyclable"],
-            // ✅ Single image field — wrap in array for gallery UI
-            images: [imageUrl],
-            dimensions: safeData.dimensions?.length
-              ? safeData.dimensions
-              : ["Standard Size"],
-            gsmOptions: safeData.gsmOptions?.length
-              ? safeData.gsmOptions
-              : ["Standard GSM"],
-          };
-
-          setProduct(formattedProduct);
-          setActiveImage(formattedProduct.images[0]);
-          setSelectedDimension(formattedProduct.dimensions[0]);
-          setSelectedGsm(formattedProduct.gsmOptions[0]);
-        } else {
-          throw new Error("Product data not found in response");
-        }
-      } catch (err) {
-        if (!isMounted) return;
-        console.error(
-          "❌ Failed to fetch product:",
-          err?.response?.data || err.message,
-        );
-        setError("Unable to load product details.");
-      } finally {
-        if (isMounted) setLoading(false);
-      }
+      setProduct(data);
+      setActiveImage(images[0]);
+      setSelectedDimension(allDimensions[0] || null);
+      setSelectedGsm(allGsms[0] || null);
+      setLoading(false);
     };
+    fetchData();
+  }, [id]);
 
-    fetchProductDetails();
-    return () => {
-      isMounted = false;
-    };
-  }, [id, token]);
+  const selectedVariant =
+    product?.variants.find(
+      (v) => v.dimension === selectedDimension && v.gsm === selectedGsm,
+    ) ||
+    product?.variants.find((v) => v.dimension === selectedDimension) ||
+    product?.variants[0];
 
-  const discount = useMemo(() => {
-    if (!product || !product.oldPrice) return 0;
-    return Math.round(
-      ((product.oldPrice - product.price) / product.oldPrice) * 100,
+  const handleAdd = () => {
+    if (!isLoggedIn) return navigate("/login");
+    addToCart({
+      id: product.id,
+      title: product.name,
+      price: selectedVariant?.price,
+      image: activeImage,
+    });
+  };
+
+  const prevImage = () => {
+    const idx = product.images.indexOf(activeImage);
+    setActiveImage(
+      product.images[(idx - 1 + product.images.length) % product.images.length],
     );
-  }, [product]);
+  };
 
-  const handleAddToCart = useCallback(() => {
-    if (!isLoggedIn) {
-      navigate("/login", { state: { from: { pathname: `/product/${id}` } } });
-      return;
-    }
-    if (product) {
-      addToCart({
-        id: `${product.id}-${selectedDimension}-${selectedGsm}`,
-        productId: product.id,
-        sku: product.sku,
-        title: product.name,
-        price: product.price,
-        image: activeImage,
-        dimension: selectedDimension,
-        gsm: selectedGsm,
-      });
-      alert("Added to Cart!");
-    }
-  }, [
-    isLoggedIn,
-    addToCart,
-    product,
-    selectedDimension,
-    selectedGsm,
-    activeImage,
-    navigate,
-    id,
-  ]);
+  const nextImage = () => {
+    const idx = product.images.indexOf(activeImage);
+    setActiveImage(product.images[(idx + 1) % product.images.length]);
+  };
 
-  const handleBuyNow = useCallback(() => {
-    if (!isLoggedIn) {
-      navigate("/login", { state: { from: { pathname: `/product/${id}` } } });
-      return;
-    }
-    handleAddToCart();
-    navigate("/cart");
-  }, [isLoggedIn, handleAddToCart, navigate, id]);
+  const selectorBtn = (active) => ({
+    padding: "5px 13px",
+    border: active ? "1.5px solid #1a1a1a" : "1.5px solid #ccc",
+    background: "#fff",
+    borderRadius: 3,
+    fontSize: 13,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    color: "#1a1a1a",
+    fontWeight: active ? 600 : 400,
+    whiteSpace: "nowrap",
+  });
+
+  const arrowBtn = {
+    position: "absolute",
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "rgba(255,255,255,0.88)",
+    border: "1px solid #ccc",
+    borderRadius: "50%",
+    width: 32,
+    height: 32,
+    cursor: "pointer",
+    fontSize: 18,
+    color: "#333",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (error || !product) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
-        <div className="text-5xl mb-4">📦</div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2">
-          Product Not Found
-        </h3>
-        <p className="text-gray-500 mb-6">
-          {error || "This product doesn't exist or was removed."}
-        </p>
-        <button
-          onClick={() => navigate("/allproducts")}
-          className="bg-gray-900 text-white px-8 py-2 rounded-full hover:bg-gray-800 transition"
-        >
-          Back to Catalog
-        </button>
+      <div style={{ minHeight: "100vh", background: "#fff" }}>
+        <div style={{ height: 80, background: "#F5A623" }} />
+        <div style={{ padding: "32px 16px", maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ display: "flex", gap: 20 }}>
+            <div
+              style={{
+                width: "100%",
+                maxWidth: 500,
+                aspectRatio: "1/1",
+                background: "#f3f3f3",
+                borderRadius: 4,
+              }}
+            />
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              {[80, 40, 60, 100, 60].map((w, i) => (
+                <div
+                  key={i}
+                  style={{
+                    height: 16,
+                    background: "#f3f3f3",
+                    borderRadius: 4,
+                    width: `${w}%`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white min-h-screen font-sans">
-      <section className="bg-yellow-400 py-8 px-4 sm:px-8">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-2xl md:text-3xl font-black text-gray-900">
-            {product.type} Box
-          </h2>
-          <nav className="text-sm text-gray-800 mt-1 opacity-80">
-            Home / {product.type} /{" "}
-            <span className="font-semibold">{product.name}</span>
-          </nav>
-        </div>
-      </section>
+    <div
+      style={{
+        background: "#fff",
+        minHeight: "100vh",
+        fontFamily: "'Segoe UI', sans-serif",
+      }}
+    >
+      {/* YELLOW HEADER */}
+      <div style={{ background: "#F5A623", padding: "18px 20px 16px" }}>
+        <h2
+          style={{
+            fontSize: isMobile ? 18 : 20,
+            fontWeight: 700,
+            color: "#1a1a1a",
+            margin: "0 0 4px",
+          }}
+        >
+          {product.category}
+        </h2>
+        <p style={{ fontSize: 13, color: "#5a3a00", margin: 0 }}>
+          Home &nbsp;/&nbsp; {product.category} &nbsp;/&nbsp;
+          <span style={{ color: "#1a1a1a" }}>{product.name}</span>
+        </p>
+      </div>
 
-      <main className="max-w-7xl mx-auto py-12 px-4 sm:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          <div className="lg:col-span-7 flex flex-col-reverse md:flex-row gap-4">
-            <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-visible">
-              {product.images.map((img, index) => (
-                <button
-                  key={index}
-                  onClick={() => setActiveImage(img)}
-                  className={`flex-shrink-0 w-20 h-20 rounded-xl border-2 transition-all ${
-                    activeImage === img
-                      ? "border-yellow-500 ring-2 ring-yellow-200"
-                      : "border-gray-100 hover:border-gray-300"
-                  } overflow-hidden bg-gray-50`}
-                >
-                  <img
-                    src={img}
-                    alt="thumb"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = FALLBACK_IMAGE;
+      {/* PRODUCT BODY */}
+      <div style={{ padding: isMobile ? "20px 16px" : "36px 20px" }}>
+        <div
+          style={{
+            maxWidth: 1100,
+            margin: "0 auto",
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            gap: isMobile ? 20 : 24,
+            alignItems: "flex-start",
+          }}
+        >
+          {/* IMAGE BLOCK */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: isMobile ? "column" : "row",
+              gap: isMobile ? 10 : 14,
+              width: isMobile ? "100%" : "auto",
+              flexShrink: 0,
+            }}
+          >
+            {/* Mobile: horizontal thumbs below image */}
+            {isMobile && (
+              <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
+                {product.images.map((img, i) => (
+                  <div
+                    key={i}
+                    onClick={() => setActiveImage(img)}
+                    style={{
+                      width: 60,
+                      height: 60,
+                      flexShrink: 0,
+                      overflow: "hidden",
+                      border:
+                        activeImage === img
+                          ? "2px solid #F5A623"
+                          : "2px solid #ddd",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      background: "#fafafa",
                     }}
-                  />
-                </button>
-              ))}
-            </div>
+                  >
+                    <img
+                      src={img}
+                      alt=""
+                      onError={(e) => (e.target.src = FALLBACK_IMAGE)}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
 
-            <div className="flex-1 bg-gray-50 rounded-3xl overflow-hidden border border-gray-100 relative group">
+            {/* Main image */}
+            <div
+              style={{
+                position: "relative",
+                width: isMobile ? "100%" : 460,
+                flexShrink: 0,
+                background: "#fafafa",
+                borderRadius: 4,
+                overflow: "hidden",
+                order: isMobile ? -1 : 0,
+              }}
+            >
               <img
                 src={activeImage}
                 alt={product.name}
-                className="w-full h-auto aspect-square object-cover transition-transform duration-700 group-hover:scale-105"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = FALLBACK_IMAGE;
+                onError={(e) => (e.target.src = FALLBACK_IMAGE)}
+                style={{
+                  width: "100%",
+                  aspectRatio: "1 / 1",
+                  objectFit: "cover",
+                  display: "block",
                 }}
               />
-            </div>
-          </div>
-
-          <div className="lg:col-span-5 space-y-8">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight mb-2">
-                {product.name}
-              </h1>
-              <p className="text-gray-400 text-sm font-mono tracking-tighter">
-                SKU: {product.sku}
-              </p>
-            </div>
-
-            <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 flex items-center gap-4">
-              <span className="text-3xl font-black text-gray-900">
-                ₹{product.price}
-              </span>
-              {product.oldPrice && (
+              {product.images.length > 1 && (
                 <>
-                  <span className="text-gray-400 line-through text-lg">
-                    ₹{product.oldPrice}
-                  </span>
-                  <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
-                    {discount}% OFF
-                  </span>
+                  <button onClick={prevImage} style={{ ...arrowBtn, left: 10 }}>
+                    ‹
+                  </button>
+                  <button
+                    onClick={nextImage}
+                    style={{ ...arrowBtn, right: 10 }}
+                  >
+                    ›
+                  </button>
                 </>
               )}
             </div>
 
+            {/* Desktop: vertical thumbs on left */}
+            {!isMobile && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  order: -1,
+                }}
+              >
+                {product.images.map((img, i) => (
+                  <div
+                    key={i}
+                    onClick={() => setActiveImage(img)}
+                    style={{
+                      width: 72,
+                      height: 72,
+                      overflow: "hidden",
+                      border:
+                        activeImage === img
+                          ? "2px solid #F5A623"
+                          : "2px solid #ddd",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      background: "#fafafa",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <img
+                      src={img}
+                      alt=""
+                      onError={(e) => (e.target.src = FALLBACK_IMAGE)}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* DETAILS */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+            }}
+          >
+            {/* Title */}
+            <h1
+              style={{
+                fontSize: isMobile ? 18 : 22,
+                fontWeight: 700,
+                color: "#1a1a1a",
+                margin: 0,
+                lineHeight: 1.35,
+              }}
+            >
+              {product.name}
+            </h1>
+
+            {/* ── PRICE ── */}
             <div
-              className={`flex items-center gap-2 font-bold ${product.stock ? "text-emerald-600" : "text-rose-600"}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
             >
               <span
-                className={`w-2 h-2 rounded-full ${product.stock ? "bg-emerald-600" : "bg-rose-600"}`}
-              ></span>
-              {product.stock
-                ? "In Stock & Ready to Ship"
-                : "Currently Out of Stock"}
+                style={{
+                  fontSize: isMobile ? 26 : 30,
+                  fontWeight: 800,
+                  color: "#1a1a1a",
+                  lineHeight: 1,
+                }}
+              >
+                ₹{selectedVariant?.price ?? "—"}
+              </span>
+              {selectedVariant?.moq && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#92400E",
+                    background: "#FEF3C7",
+                    border: "1px solid #FDE68A",
+                    padding: "3px 10px",
+                    borderRadius: 20,
+                  }}
+                >
+                  MOQ: {selectedVariant.moq} units
+                </span>
+              )}
             </div>
 
-            <p className="text-gray-600 leading-relaxed">
+            {/* Divider below price */}
+            <div style={{ height: 1, background: "#f0f0f0" }} />
+
+            {/* Description */}
+            <p
+              style={{
+                fontSize: 14,
+                color: "#555",
+                lineHeight: 1.8,
+                margin: 0,
+              }}
+            >
               {product.description}
             </p>
 
-            <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl text-sm">
-              <div>
-                <span className="text-gray-400 block mb-1">Material</span>
-                <span className="font-bold text-gray-900">
-                  {product.material}
+            {/* Dimension */}
+            {product.allDimensions.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: isMobile ? "flex-start" : "center",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: isMobile ? 8 : 16,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "#1a1a1a",
+                    minWidth: 110,
+                    flexShrink: 0,
+                  }}
+                >
+                  Dimension
                 </span>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {product.allDimensions.map((dim) => (
+                    <button
+                      key={dim}
+                      onClick={() => setSelectedDimension(dim)}
+                      style={selectorBtn(selectedDimension === dim)}
+                    >
+                      {dim}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <span className="text-gray-400 block mb-1">Best For</span>
-                <span className="font-bold text-gray-900">
-                  {product.useCase}
+            )}
+
+            {/* GSM */}
+            {product.allGsms.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: isMobile ? "flex-start" : "center",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: isMobile ? 8 : 16,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "#1a1a1a",
+                    minWidth: 110,
+                    flexShrink: 0,
+                  }}
+                >
+                  Strength/GSM
                 </span>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {product.allGsms.map((gsm) => (
+                    <button
+                      key={gsm}
+                      onClick={() => setSelectedGsm(gsm)}
+                      style={selectorBtn(selectedGsm === gsm)}
+                    >
+                      {gsm} GSM
+                    </button>
+                  ))}
+                </div>
               </div>
+            )}
+
+            {/* CTA Buttons */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                onClick={handleAdd}
+                style={{
+                  flex: 1,
+                  padding: "12px 0",
+                  background: "#F5A623",
+                  border: "none",
+                  borderRadius: 4,
+                  color: "#fff",
+                  fontSize: isMobile ? 14 : 15,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Add to cart
+              </button>
+              <button
+                style={{
+                  flex: 1,
+                  padding: "12px 0",
+                  background: "#5a6270",
+                  border: "none",
+                  borderRadius: 4,
+                  color: "#fff",
+                  fontSize: isMobile ? 14 : 15,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Enquire for Bulk
+              </button>
+              <button
+                onClick={() => setWishlisted((w) => !w)}
+                style={{
+                  width: 44,
+                  height: 44,
+                  flexShrink: 0,
+                  border: "1.5px solid #ddd",
+                  background: "#fff",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 18,
+                  color: wishlisted ? "#e05555" : "#ccc",
+                }}
+              >
+                {wishlisted ? "♥" : "♡"}
+              </button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {product.eco.map((tag, i) => (
-                <span
+            {/* Features */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+              {product.features.map((f, i) => (
+                <div
                   key={i}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-100"
+                  style={{ display: "flex", alignItems: "center", gap: 10 }}
                 >
-                  🌿 {tag}
-                </span>
+                  <span style={{ fontSize: 16 }}>
+                    {i === 0 ? "🚚" : i === 1 ? "📦" : "🌿"}
+                  </span>
+                  <span style={{ fontSize: 13, color: "#555" }}>{f}</span>
+                </div>
               ))}
             </div>
 
-            <div>
-              <label className="text-sm font-bold text-gray-900 block mb-3 uppercase tracking-wider">
-                Select Dimensions
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {product.dimensions.map((dim, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedDimension(dim)}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border ${
-                      selectedDimension === dim
-                        ? "bg-gray-900 text-white border-gray-900 shadow-lg"
-                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
-                    }`}
-                  >
-                    {dim}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Divider */}
+            <div style={{ height: 1, background: "#eee" }} />
 
-            <div>
-              <label className="text-sm font-bold text-gray-900 block mb-3 uppercase tracking-wider">
-                Strength (GSM)
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {product.gsmOptions.map((gsm, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedGsm(gsm)}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border ${
-                      selectedGsm === gsm
-                        ? "bg-gray-900 text-white border-gray-900 shadow-lg"
-                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
-                    }`}
+            {/* Accordions */}
+            {product.accordions.map((acc) => (
+              <div key={acc._id} style={{ borderBottom: "1px solid #eee" }}>
+                <button
+                  onClick={() =>
+                    setOpenAccordion(openAccordion === acc._id ? null : acc._id)
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "12px 0",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "#1a1a1a",
+                    textAlign: "left",
+                  }}
+                >
+                  {acc.title}
+                  <span
+                    style={{
+                      fontSize: 20,
+                      color: "#999",
+                      lineHeight: 1,
+                      fontWeight: 300,
+                      flexShrink: 0,
+                    }}
                   >
-                    {gsm}
-                  </button>
-                ))}
+                    {openAccordion === acc._id ? "−" : "+"}
+                  </span>
+                </button>
+                <AnimatePresence>
+                  {openAccordion === acc._id && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ overflow: "hidden" }}
+                    >
+                      <p
+                        style={{
+                          fontSize: 13,
+                          color: "#666",
+                          lineHeight: 1.75,
+                          paddingBottom: 12,
+                          margin: 0,
+                        }}
+                      >
+                        {acc.description}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <button
-                disabled={!product.stock}
-                onClick={handleAddToCart}
-                className="flex-1 py-4 px-6 rounded-xl border-2 border-gray-900 text-gray-900 font-bold hover:bg-gray-900 hover:text-white transition-all disabled:opacity-30 disabled:pointer-events-none"
-              >
-                {isLoggedIn ? "Add to Cart" : "Login to Buy"}
-              </button>
-              <button
-                disabled={!product.stock}
-                onClick={handleBuyNow}
-                className="flex-1 py-4 px-6 rounded-xl bg-yellow-400 text-gray-900 font-bold shadow-[0_4px_0_0_#ca8a04] active:translate-y-1 active:shadow-none transition-all disabled:opacity-30 disabled:pointer-events-none"
-              >
-                {isLoggedIn ? "Buy It Now" : "Login to Buy"}
-              </button>
-            </div>
-          </div>
+            ))}
+          </motion.div>
         </div>
-      </main>
+      </div>
 
       <TopSellingProducts />
       <Footer />
@@ -408,4 +654,4 @@ const ProductDetails = () => {
   );
 };
 
-export default React.memo(ProductDetails);
+export default ProductDetails;
