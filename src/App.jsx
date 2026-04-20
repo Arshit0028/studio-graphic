@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import api from "./api/axios";
 import useAuthStore from "./auth/useAuthStore";
+import PackStudioPage from "./pages/PackStudioPage";
 
 // 🔹 1. STANDARD IMPORT FOR THE LCP PAGE (HOME)
 import Home from "./pages/Home";
@@ -83,6 +84,7 @@ function App() {
             <Route path="/allproducts" element={<AllProducts />} />
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/studio" element={<PackStudioPage />} />
 
             {/* Protected Routes — require actual login */}
             <Route

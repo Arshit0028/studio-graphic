@@ -10,7 +10,7 @@ function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isLoggedIn = useAuthStore((state) => state.isLoggedIn); // ✅ use isLoggedIn not token
+  const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
 
@@ -22,8 +22,7 @@ function Navbar() {
 
   const handleProtectedNavigation = useCallback(
     (path) => {
-      if (!isLoggedIn)
-        navigate("/login"); // ✅ use isLoggedIn
+      if (!isLoggedIn) navigate("/login");
       else navigate(path);
     },
     [isLoggedIn, navigate],
@@ -67,53 +66,56 @@ function Navbar() {
   };
 
   const navLinkClass = ({ isActive }) =>
-    `text-sm font-semibold transition-colors duration-200 !no-underline ${
+    `relative text-[14px] font-semibold transition-all duration-300 py-2 !no-underline ${
       isActive ? "!text-gray-900" : "!text-gray-500 hover:!text-gray-900"
     }`;
 
   const mobileLinkClass = ({ isActive }) =>
-    `block px-3 py-2 rounded-md text-base font-medium !no-underline ${
+    `block px-4 py-3.5 rounded-xl text-[15px] font-semibold transition-all duration-300 !no-underline ${
       isActive
-        ? "bg-gray-50 !text-gray-900"
+        ? "bg-gray-900/5 !text-gray-900 shadow-sm"
         : "!text-gray-500 hover:bg-gray-50 hover:!text-gray-900"
     }`;
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
+    <nav className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-gray-200/60 shadow-[0_4px_30px_rgba(0,0,0,0.03)] transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
+          {/* Logo */}
           <div className="flex-shrink-0 flex items-center">
             <Link
               to="/"
-              className="text-2xl font-black !text-gray-900 !no-underline tracking-tight hover:opacity-80 transition-opacity"
+              className="text-[22px] font-black !text-gray-900 !no-underline tracking-tight hover:opacity-80 transition-opacity flex items-center"
             >
               Studio Graphics
             </Link>
           </div>
 
+          {/* Desktop Navigation */}
           <div className="hidden lg:flex lg:items-center lg:space-x-8">
             <NavLink to="/" className={navLinkClass}>
               Home
             </NavLink>
 
+            {/* Shop Dropdown */}
             <div className="relative group">
               <button
                 onClick={() => toggleDropdown("shop")}
-                className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors focus:outline-none bg-transparent border-none p-0"
+                className="flex items-center gap-1.5 text-[14px] font-semibold !text-gray-500 hover:!text-gray-900 transition-colors focus:outline-none bg-transparent border-none p-0 !no-underline"
               >
                 Shop
                 <svg
-                  className={`h-4 w-4 transition-transform duration-200 ${
-                    dropdownOpen === "shop" ? "rotate-180" : ""
+                  className={`h-4 w-4 transition-transform duration-300 ${
+                    dropdownOpen === "shop" ? "rotate-180 !text-gray-900" : ""
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
+                  strokeWidth={2}
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
                     d="M19 9l-7 7-7-7"
                   />
                 </svg>
@@ -125,12 +127,12 @@ function Navbar() {
                     className="fixed inset-0 z-10"
                     onClick={() => setDropdownOpen(null)}
                   />
-                  <div className="absolute left-0 mt-2 w-56 rounded-xl shadow-xl bg-white border border-gray-100 ring-1 ring-black ring-opacity-5 z-20 py-2">
+                  <div className="absolute left-1/2 -translate-x-1/2 mt-5 w-64 rounded-2xl bg-white border border-gray-100 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] z-20 py-2.5 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                     {categories.map((cat, idx) => (
                       <Link
                         key={idx}
                         to={`/allproducts?category=${encodeURIComponent(cat)}`}
-                        className="block px-4 py-2.5 text-sm !text-gray-600 hover:bg-gray-50 hover:!text-gray-900 !no-underline transition-colors"
+                        className="block px-5 py-2.5 text-[14px] font-medium !text-gray-600 hover:bg-gray-50 hover:!text-gray-900 !no-underline transition-colors"
                         onClick={() => setDropdownOpen(null)}
                       >
                         {cat}
@@ -141,30 +143,37 @@ function Navbar() {
               )}
             </div>
 
-            {/* <NavLink
-              to="/allproducts"
-              className="block px-4 py-2.5 text-sm !text-gray-600 hover:bg-gray-50 hover:!text-gray-900 !no-underline transition-colors"
-            >
-              Box Types
-            </NavLink> */}
-
-            <NavLink
-              to="/#custom-design"
+            <button
               onClick={handleCustomDesignScroll}
-              className="block px-4 py-2.5 text-sm !text-gray-600 hover:bg-gray-50 hover:!text-gray-900 !no-underline transition-colors"
+              className="text-[14px] font-semibold !text-gray-500 hover:!text-gray-900 !no-underline transition-colors focus:outline-none bg-transparent border-none p-0"
             >
               Custom Design
-            </NavLink>
+            </button>
 
-            <div className="h-6 w-px bg-gray-300 mx-2"></div>
+            {/* PREMIUM BUTTON WITH GAP & SEPARATOR */}
+            <div className="flex items-center pl-6 ml-2 border-l border-gray-200/80">
+              <Link
+                to="/studio"
+                className="group relative inline-flex items-center justify-center px-6 py-2.5 text-[14px] font-bold text-white transition-all duration-300 rounded-full bg-gray-900 shadow-[0_8px_20px_-6px_rgba(0,0,0,0.4)] hover:bg-black hover:shadow-[0_10px_25px_-6px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 active:translate-y-0 !no-underline overflow-hidden"
+              >
+                <div className="absolute inset-0 rounded-full ring-1 ring-inset ring-white/10 pointer-events-none"></div>
+                <span className="relative flex items-center">
+                  <span className="mr-2 group-hover:scale-110 transition-transform duration-300">
+                    🎨
+                  </span>
+                  Box Designer
+                </span>
+              </Link>
+            </div>
 
-            <div className="flex items-center space-x-6">
+            {/* Icons */}
+            <div className="flex items-center space-x-6 ml-4">
               <button
                 onClick={() => handleProtectedNavigation("/wishlist")}
-                className="relative group p-1"
+                className="relative p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all duration-300 focus:outline-none"
               >
                 <svg
-                  className="h-6 w-6 text-gray-400 group-hover:text-red-500 transition-colors"
+                  className="h-[22px] w-[22px]"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -177,7 +186,7 @@ function Navbar() {
                   />
                 </svg>
                 {wishlistCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-gray-900 text-[10px] font-bold text-white">
+                  <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-gray-900 text-[10px] font-bold text-white ring-2 ring-white">
                     {wishlistCount}
                   </span>
                 )}
@@ -185,10 +194,10 @@ function Navbar() {
 
               <button
                 onClick={() => handleProtectedNavigation("/cart")}
-                className="relative group p-1"
+                className="relative p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all duration-300 focus:outline-none"
               >
                 <svg
-                  className="h-6 w-6 text-gray-400 group-hover:text-gray-900 transition-colors"
+                  className="h-[22px] w-[22px]"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -201,24 +210,25 @@ function Navbar() {
                   />
                 </svg>
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                  <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white ring-2 ring-white">
                     {cartCount}
                   </span>
                 )}
               </button>
             </div>
 
-            <div className="ml-4">
-              {isLoggedIn ? ( // ✅ use isLoggedIn
+            {/* Profile / Auth Desktop */}
+            <div className="ml-2">
+              {isLoggedIn ? (
                 <div className="relative">
                   <button
                     onClick={() => toggleDropdown("user")}
-                    className="flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-full py-1.5 pl-1.5 pr-4 hover:bg-white hover:shadow-md transition-all focus:outline-none"
+                    className="flex items-center space-x-2.5 bg-white border border-gray-200 rounded-full py-1.5 pl-1.5 pr-4 hover:border-gray-300 hover:shadow-md transition-all duration-300 focus:outline-none"
                   >
-                    <div className="h-8 w-8 rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-bold">
+                    <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 text-[13px] font-bold border border-gray-200">
                       {userInitial}
                     </div>
-                    <span className="text-sm font-semibold !text-gray-700 max-w-[100px] truncate">
+                    <span className="text-[14px] font-semibold !text-gray-800 max-w-[100px] truncate">
                       {userFirstName}
                     </span>
                   </button>
@@ -229,31 +239,31 @@ function Navbar() {
                         className="fixed inset-0 z-10"
                         onClick={() => setDropdownOpen(null)}
                       />
-                      <div className="absolute right-0 mt-2 w-48 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 py-1 z-20">
+                      <div className="absolute right-0 mt-3 w-56 rounded-2xl bg-white border border-gray-100 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] p-2 z-20 animate-in fade-in slide-in-from-top-2 duration-200">
                         <Link
                           to="/profile"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 !no-underline"
+                          className="flex items-center px-4 py-2.5 text-[14px] font-medium !text-gray-700 hover:bg-gray-50 rounded-xl !no-underline transition-colors"
                           onClick={() => setDropdownOpen(null)}
                         >
-                          👤 My Profile
+                          <span className="mr-3 opacity-70">👤</span> Profile
                         </Link>
                         <Link
                           to="/orders"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 !no-underline"
+                          className="flex items-center px-4 py-2.5 text-[14px] font-medium !text-gray-700 hover:bg-gray-50 rounded-xl !no-underline transition-colors"
                           onClick={() => setDropdownOpen(null)}
                         >
-                          📦 My Orders
+                          <span className="mr-3 opacity-70">📦</span> Orders
                         </Link>
-                        <div className="border-t border-gray-100 my-1"></div>
+                        <div className="h-px bg-gray-100 my-1 mx-2"></div>
                         <button
                           onClick={() => {
                             logout();
                             navigate("/");
                             setDropdownOpen(null);
                           }}
-                          className="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium"
+                          className="w-full text-left flex items-center px-4 py-2.5 text-[14px] font-medium !text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                         >
-                          🚪 Logout
+                          <span className="mr-3 opacity-70">🚪</span> Sign Out
                         </button>
                       </div>
                     </>
@@ -262,21 +272,22 @@ function Navbar() {
               ) : (
                 <Link
                   to="/login"
-                  className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm font-bold rounded-full text-white bg-gray-900 hover:bg-black transition-transform hover:scale-105 !no-underline shadow-lg shadow-gray-900/20"
+                  className="inline-flex items-center justify-center px-6 py-2.5 border-2 border-gray-900 text-[14px] font-bold rounded-full !text-gray-900 bg-transparent hover:bg-gray-900 hover:!text-white transition-all duration-300 !no-underline"
                 >
-                  Login / Signup
+                  Sign In
                 </Link>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-3 lg:hidden">
+          {/* Mobile Header Elements */}
+          <div className="flex items-center gap-2 lg:hidden">
             <button
               onClick={() => handleProtectedNavigation("/wishlist")}
-              className="relative p-1"
+              className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
             >
               <svg
-                className="h-5 w-5 text-gray-500"
+                className="h-[22px] w-[22px]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -289,7 +300,7 @@ function Navbar() {
                 />
               </svg>
               {wishlistCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-gray-900 text-[10px] font-bold text-white">
+                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-gray-900 text-[10px] font-bold text-white ring-2 ring-white">
                   {wishlistCount}
                 </span>
               )}
@@ -297,10 +308,10 @@ function Navbar() {
 
             <button
               onClick={() => handleProtectedNavigation("/cart")}
-              className="relative p-1"
+              className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
             >
               <svg
-                className="h-5 w-5 text-gray-500"
+                className="h-[22px] w-[22px]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -313,7 +324,7 @@ function Navbar() {
                 />
               </svg>
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white ring-2 ring-white">
                   {cartCount}
                 </span>
               )}
@@ -321,7 +332,7 @@ function Navbar() {
 
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-md text-gray-400 hover:text-gray-900 hover:bg-gray-100 focus:outline-none"
+              className="p-2 ml-1 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full focus:outline-none transition-colors"
             >
               <svg
                 className="h-6 w-6"
@@ -333,15 +344,15 @@ function Navbar() {
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
+                    strokeWidth={1.5}
                     d="M6 18L18 6M6 6l12 12"
                   />
                 ) : (
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
+                    strokeWidth={1.5}
+                    d="M4 7h16M4 12h16M4 17h16"
                   />
                 )}
               </svg>
@@ -350,61 +361,74 @@ function Navbar() {
         </div>
       </div>
 
+      {/* Premium Floating Mobile Menu Portal */}
       {isOpen &&
         createPortal(
-          <div className="fixed inset-0 z-[9999] lg:hidden">
+          <div className="fixed inset-0 z-[9999] lg:hidden flex justify-end">
             <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-gray-900/30 backdrop-blur-sm transition-opacity"
               onClick={() => setIsOpen(false)}
             />
 
-            <div className="absolute top-0 right-0 h-full w-72 bg-white shadow-2xl flex flex-col">
-              <div className="flex items-center justify-between px-5 py-5 border-b border-gray-100">
-                <span className="text-lg font-black text-gray-900 tracking-tight">
-                  Studio Graphics
+            <div className="relative w-[85%] max-w-[360px] h-full bg-white shadow-[-20px_0_40px_rgba(0,0,0,0.1)] flex flex-col animate-in slide-in-from-right duration-300">
+              <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                <span className="text-[18px] font-black !text-gray-900 tracking-tight">
+                  Menu
                 </span>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-colors"
+                  className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-colors"
                 >
-                  ✕
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+              <div className="flex-1 overflow-y-auto px-5 py-6 space-y-2">
                 <NavLink to="/" className={mobileLinkClass}>
                   Home
                 </NavLink>
 
-                <div>
+                <div className="bg-gray-50/50 rounded-2xl border border-gray-100/50 p-1">
                   <button
                     type="button"
                     onClick={() => setMobileShopOpen((o) => !o)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-md text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-[15px] font-semibold !text-gray-600 hover:bg-white hover:shadow-sm hover:!text-gray-900 transition-all"
                   >
                     Shop
                     <svg
-                      className={`h-4 w-4 transition-transform duration-200 ${mobileShopOpen ? "rotate-180" : ""}`}
+                      className={`h-4 w-4 transition-transform duration-300 ${mobileShopOpen ? "rotate-180 !text-gray-900" : ""}`}
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
+                      strokeWidth={2}
                     >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeWidth={2}
                         d="M19 9l-7 7-7-7"
                       />
                     </svg>
                   </button>
 
                   {mobileShopOpen && (
-                    <div className="mt-1 ml-3 pl-3 border-l-2 border-yellow-400 space-y-1">
+                    <div className="pb-3 px-3 mt-1 space-y-1 animate-in fade-in slide-in-from-top-2">
                       {categories.map((cat, idx) => (
                         <Link
                           key={idx}
                           to={`/allproducts?category=${encodeURIComponent(cat)}`}
-                          className="block px-3 py-2 rounded-md text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900 !no-underline transition-colors"
+                          className="block px-4 py-2.5 rounded-lg text-[14px] font-medium !text-gray-500 hover:bg-white hover:shadow-sm hover:!text-gray-900 !no-underline transition-all"
                         >
                           {cat}
                         </Link>
@@ -413,44 +437,58 @@ function Navbar() {
                   )}
                 </div>
 
-                <NavLink to="/allproducts" className={mobileLinkClass}>
-                  Box Types
-                </NavLink>
-
                 <button
                   type="button"
                   onClick={() => {
                     handleCustomDesignScroll();
                     setIsOpen(false);
                   }}
-                  className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                  className="w-full text-left block px-4 py-3.5 rounded-xl text-[15px] font-semibold !text-gray-600 hover:bg-gray-50 hover:!text-gray-900 transition-colors"
                 >
                   Custom Design
                 </button>
+
+                {/* MOBILE PREMIUM BUTTON */}
+                <div className="pt-6 pb-2 px-1">
+                  <Link
+                    to="/studio"
+                    onClick={() => setIsOpen(false)}
+                    className="flex w-full items-center justify-center px-4 py-3.5 text-[15px] font-bold text-white transition-all duration-300 rounded-xl bg-gray-900 shadow-[0_8px_20px_-6px_rgba(0,0,0,0.4)] active:scale-[0.98] !no-underline"
+                  >
+                    <span className="mr-2">🎨</span> Box Designer
+                  </Link>
+                </div>
               </div>
 
-              <div className="border-t border-gray-100 px-4 py-4">
-                {isLoggedIn ? ( // ✅ use isLoggedIn
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3 px-3 py-2 mb-2">
-                      <div className="h-9 w-9 rounded-full bg-gray-900 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+              <div className="p-6 bg-gray-50/80 border-t border-gray-100">
+                {isLoggedIn ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 px-3 py-3 mb-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                      <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 text-[15px] font-bold flex-shrink-0 border border-gray-200">
                         {userInitial}
                       </div>
-                      <span className="text-sm font-semibold text-gray-800 truncate">
-                        {userFirstName}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-[15px] font-bold !text-gray-900 truncate">
+                          {userFirstName}
+                        </span>
+                        <span className="text-[12px] text-gray-500">
+                          Welcome back
+                        </span>
+                      </div>
                     </div>
+
                     <Link
                       to="/profile"
-                      className="block px-3 py-2 rounded-md text-sm text-gray-600 hover:bg-gray-50 !no-underline"
+                      className="flex items-center px-4 py-3 rounded-xl text-[14px] font-semibold !text-gray-700 hover:bg-white hover:shadow-sm !no-underline transition-all"
                     >
-                      👤 My Profile
+                      <span className="mr-3 text-lg opacity-80">👤</span>{" "}
+                      Profile
                     </Link>
                     <Link
                       to="/orders"
-                      className="block px-3 py-2 rounded-md text-sm text-gray-600 hover:bg-gray-50 !no-underline"
+                      className="flex items-center px-4 py-3 rounded-xl text-[14px] font-semibold !text-gray-700 hover:bg-white hover:shadow-sm !no-underline transition-all"
                     >
-                      📦 My Orders
+                      <span className="mr-3 text-lg opacity-80">📦</span> Orders
                     </Link>
                     <button
                       onClick={() => {
@@ -458,17 +496,19 @@ function Navbar() {
                         navigate("/");
                         setIsOpen(false);
                       }}
-                      className="w-full text-left block px-3 py-2 rounded-md text-sm text-red-600 hover:bg-red-50 font-medium"
+                      className="w-full text-left flex items-center px-4 py-3 mt-2 rounded-xl text-[14px] font-bold !text-red-600 bg-red-50/80 hover:bg-red-100 transition-all"
                     >
-                      🚪 Logout
+                      <span className="mr-3 text-lg opacity-80">🚪</span> Sign
+                      Out
                     </button>
                   </div>
                 ) : (
                   <Link
                     to="/login"
-                    className="flex items-center justify-center w-full px-6 py-3 text-sm font-bold rounded-full text-white bg-gray-900 hover:bg-black !no-underline transition-colors"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center justify-center w-full px-6 py-3.5 text-[15px] font-bold rounded-xl text-white bg-gray-900 hover:bg-black shadow-[0_8px_20px_-6px_rgba(0,0,0,0.4)] !no-underline transition-all active:scale-[0.98]"
                   >
-                    Login / Signup
+                    Sign In
                   </Link>
                 )}
               </div>
